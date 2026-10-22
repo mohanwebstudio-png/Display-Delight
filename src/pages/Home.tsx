@@ -957,64 +957,28 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
       ]
 
       return (
-        <section className="bg-soft/70 py-14 sm:py-20 border-y border-line/60">
+        <section className="bg-soft/70 py-10 sm:py-14 border-y border-line/60">
           <Container>
-            {/* Commercial Header - Direct Commerce, Zero Promotion Fluff */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6">
+            {/* Minimal Clean Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700 border border-emerald-500/20 mb-2">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Commercial Displays For Sale · Ready to Order
-                </div>
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-navy tracking-tight font-display">
-                  Commercial Display Systems
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-navy font-display">
+                  Commercial Displays for Sale
                 </h2>
-                <p className="mt-1 max-w-xl text-sm text-ink-2">
-                  High-converting digital signage, LED light boxes, and optical display fixtures engineered for retail, events, and corporate spaces.
+                <p className="mt-1 text-xs sm:text-sm text-ink-2">
+                  In stock · Pan-India dispatch in 24–48 hrs · 1-Year Warranty · 18% GST Invoice
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Btn variant="secondary" to="/shop" iconRight icon={<ArrowRight className="size-4" />}>
+              <div className="shrink-0">
+                <Btn variant="secondary" size="sm" to="/shop" iconRight icon={<ArrowRight className="size-4" />}>
                   Explore All ({products.length})
                 </Btn>
               </div>
             </div>
 
-            {/* Direct Commercial Trust Highlights */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-4 mb-6 rounded-2xl bg-white border border-line p-3 shadow-xs">
-              <div className="flex items-center gap-2.5 px-3 py-1">
-                <Truck className="size-5 text-brand shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-ink">Pan-India Freight</p>
-                  <p className="text-[11px] text-ink-2 truncate">Dispatch in 24-48 hrs</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2.5 px-3 py-1 border-l border-line/60">
-                <ShieldCheck className="size-5 text-emerald-600 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-ink">1-Year Warranty</p>
-                  <p className="text-[11px] text-ink-2 truncate">Commercial grade guarantee</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2.5 px-3 py-1 border-l border-line/60">
-                <Tag className="size-5 text-amber-600 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-ink">GST 18% Invoice</p>
-                  <p className="text-[11px] text-ink-2 truncate">Full input tax credit</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2.5 px-3 py-1 border-l border-line/60">
-                <Box className="size-5 text-blue-600 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-ink">Custom Branding</p>
-                  <p className="text-[11px] text-ink-2 truncate">Factory direct finishing</p>
-                </div>
-              </div>
-            </div>
-
             {/* Category Filter Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 hide-scroll">
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 hide-scroll">
               {productTabs.map((tab) => (
                 <button
                   key={tab.id}
