@@ -43,8 +43,8 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
   const submit = () => { if (!q.trim()) return; setOpen(false); go('/search?q=' + encodeURIComponent(q)) }
   return (
     <div ref={box} className={cx('relative', className)}>
-      <div className="flex h-11 items-center rounded-dd border border-line bg-soft pl-3.5 transition focus-within:border-brand focus-within:bg-white focus-within:ring-2 focus-within:ring-brand/20">
-        <Search className="size-[18px] text-ink-2" />
+      <div className="flex h-11 w-full items-center rounded-dd border border-line bg-soft pl-3.5 transition focus-within:border-brand focus-within:bg-white focus-within:ring-2 focus-within:ring-brand/20">
+        <Search className="size-[18px] shrink-0 text-ink-2" />
         <input
           autoFocus={autoFocus} value={q} role="combobox" aria-expanded={open} aria-label="Search products"
           onChange={(e) => { setQ(e.target.value); setOpen(true); setSel(-1) }} onFocus={() => setOpen(true)}
@@ -54,10 +54,10 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
             else if (e.key === 'Enter') { if (sel >= 0) { setOpen(false); go('/product/' + results[sel].id) } else submit() }
             else if (e.key === 'Escape') setOpen(false)
           }}
-          placeholder="Search digital standees, light boxes, roll-ups…" className="h-full min-w-0 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-[#8a8a8a]"
+          placeholder="Search digital standees, light boxes, roll-ups…" className="h-full min-w-0 flex-1 bg-transparent px-2.5 sm:px-3 text-sm outline-none placeholder:text-[#8a8a8a]"
         />
-        {q && <button aria-label="Clear search" onClick={() => { setQ(''); setOpen(false) }} className="grid size-8 place-items-center text-ink-2 hover:text-ink"><X className="size-4" /></button>}
-        <button onClick={submit} className="mr-1 h-9 rounded-md bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-hover">Search</button>
+        {q && <button aria-label="Clear search" onClick={() => { setQ(''); setOpen(false) }} className="grid size-8 shrink-0 place-items-center text-ink-2 hover:text-ink"><X className="size-4" /></button>}
+        <button onClick={submit} className="mr-1 h-9 shrink-0 rounded-md bg-brand px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white hover:bg-brand-hover">Search</button>
       </div>
       {open && q.trim() && (
         <div className="anim-pop absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-line bg-white shadow-pop" role="listbox">
@@ -179,7 +179,7 @@ export function Header({
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
-        <Container className="flex h-[60px] items-center gap-2 sm:h-[68px] sm:gap-3 lg:gap-6">
+        <Container className="flex h-[60px] items-center gap-2 sm:h-[68px] sm:gap-3 lg:gap-5">
           <button
             className="grid size-10 shrink-0 place-items-center rounded-full hover:bg-soft active:bg-soft lg:hidden touch-manipulation"
             aria-label="Open navigation menu"
@@ -189,17 +189,17 @@ export function Header({
             <Menu className="size-5" />
           </button>
 
-          <Link to="/" aria-label={`${storeSettings.site_name || 'DisplayDelight'} home`} className="flex shrink items-center gap-2 min-w-0">
+          <Link to="/" aria-label={`${storeSettings.site_name || 'DisplayDelight'} home`} className="flex shrink-0 items-center gap-2 min-w-0">
             <img
               src={resolveAssetUrl(storeSettings.site_logo_url || '/logo-orange.png')}
               alt={storeSettings.site_name || 'DisplayDelight'}
-              className="h-7 w-auto max-w-[125px] xs:max-w-[155px] sm:h-9 sm:max-w-[190px] md:max-w-[200px] object-contain"
+              className="h-7 w-auto max-w-[125px] xs:max-w-[155px] sm:h-9 sm:max-w-[185px] md:max-w-[195px] object-contain"
             />
           </Link>
 
           <nav className="hidden items-center gap-0.5 lg:flex shrink-0" aria-label="Main navigation">
             <div className="relative" onMouseEnter={() => setMega(true)} onMouseLeave={() => setMega(false)}>
-              <Link to="/shop" className="flex h-10 items-center gap-1 rounded-full px-2.5 text-[13px] font-semibold hover:bg-soft xl:px-4 xl:text-sm">Shop<ChevronDown className={cx('size-4 transition', mega && 'rotate-180')} /></Link>
+              <Link to="/shop" className="flex h-10 items-center gap-1 rounded-full px-2.5 text-[13px] font-semibold hover:bg-soft xl:px-3.5 xl:text-sm">Shop<ChevronDown className={cx('size-4 transition', mega && 'rotate-180')} /></Link>
               {mega && (
                 <div className="anim-pop absolute left-0 top-full pt-2" style={{ width: 'min(760px, calc(100vw - 2rem))' }}>
                   <div className="grid grid-cols-[1fr_200px] overflow-hidden rounded-xl border border-line bg-white shadow-pop xl:grid-cols-[1fr_240px]">
@@ -221,16 +221,18 @@ export function Header({
             </div>
             {navItems.length > 0 ? (
               navItems.map((item) => (
-                <Link key={item.id} to={item.to} className="flex h-10 items-center rounded-full px-2.5 text-[13px] font-semibold hover:bg-soft xl:px-4 xl:text-sm">{item.label}</Link>
+                <Link key={item.id} to={item.to} className="flex h-10 items-center rounded-full px-2.5 text-[13px] font-semibold hover:bg-soft xl:px-3.5 xl:text-sm">{item.label}</Link>
               ))
             ) : (
-              defaultNav.map(([l, t]) => <Link key={t} to={t} className="flex h-10 items-center rounded-full px-2.5 text-[13px] font-semibold hover:bg-soft xl:px-4 xl:text-sm">{l}</Link>)
+              defaultNav.map(([l, t]) => <Link key={t} to={t} className="flex h-10 items-center rounded-full px-2.5 text-[13px] font-semibold hover:bg-soft xl:px-3.5 xl:text-sm">{l}</Link>)
             )}
           </nav>
 
-          <SearchBox className="hidden min-w-0 flex-1 max-w-[200px] lg:max-w-xs xl:max-w-md 2xl:max-w-xl md:block" />
+          <div className="hidden min-w-0 flex-1 items-center justify-center md:flex px-1 lg:px-4">
+            <SearchBox className="w-full min-w-[200px] max-w-[340px] lg:max-w-[420px] xl:max-w-[480px]" />
+          </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-0.5 md:ml-0">
+          <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
             <button className="grid size-10 place-items-center rounded-full hover:bg-soft md:hidden touch-manipulation" aria-label="Search products" onClick={() => setMsearch(true)}><Search className="size-5" /></button>
             <a href={waUrl} target="_blank" rel="noreferrer" aria-label="Chat on WhatsApp" className="hidden size-10 place-items-center rounded-full text-[#1f9d55] hover:bg-soft xl:grid"><MessageCircle className="size-5" /></a>
             <span className="hidden sm:block"><IconLink to="/compare" label="Compare products" count={compare.length}><Scale className="size-5" /></IconLink></span>
