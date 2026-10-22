@@ -145,12 +145,27 @@ def get_homepage_editor_data(
         except Exception:
             pass
 
+    cats_sec = sec_map.get("cats")
     cats_list = []
+    cats_title = cats_sec.title if cats_sec and cats_sec.title else "Shop by category"
+    cats_subtitle = cats_sec.subtitle if cats_sec and cats_sec.subtitle else "Categories"
     if cats_sec and cats_sec.content:
         try:
-            cats_list = json.loads(cats_sec.content) if isinstance(cats_sec.content, str) else cats_sec.content
+            parsed = json.loads(cats_sec.content) if isinstance(cats_sec.content, str) else cats_sec.content
+            if isinstance(parsed, dict):
+                cats_list = parsed.get("items", [])
+                if parsed.get("title"):
+                    cats_title = parsed["title"]
+                if parsed.get("subtitle"):
+                    cats_subtitle = parsed["subtitle"]
+            elif isinstance(parsed, list):
+                cats_list = parsed
         except Exception:
             pass
+
+    if not cats_list:
+        db_cats = db.query(Category).filter(Category.status == PublishStatus.published).order_by(Category.display_order.asc()).all()
+        cats_list = [cat.slug for cat in db_cats if cat.slug]
 
     industries_list = [0, 1, 2, 3]
     if ind_sec and ind_sec.content:
@@ -182,7 +197,11 @@ def get_homepage_editor_data(
             "c2": hero_extra.get("c2", "Request a quote"),
             "c2to": hero_extra.get("c2to", "/quote"),
         },
-        "cats": cats_list if cats_list else ["digital-signage", "light-boxes", "acrylic-displays", "roll-ups"],
+        "cats": {
+            "title": cats_title,
+            "subtitle": cats_subtitle,
+            "items": cats_list,
+        },
         "featured": featured_list if featured_list else ["i-type-standee", "ultra-slim", "gazebo", "rollup"],
         "intro": {
             "title": intro_sec.title if intro_sec and intro_sec.title else "Signage built around your brand",
@@ -296,8 +315,13 @@ def save_homepage_editor_data(
     # 4. Categories
     if "cats" in c:
         cat_sec = _get_or_create_sec("cats", order_map.get("cats", 4))
-        cat_sec.title = "Shop by Category"
-        cat_sec.content = json.dumps(c["cats"])
+        if isinstance(c["cats"], dict):
+            cat_sec.title = c["cats"].get("title", "Shop by category")
+            cat_sec.subtitle = c["cats"].get("subtitle", "Categories")
+            cat_sec.content = json.dumps(c["cats"].get("items", []))
+        else:
+            cat_sec.title = "Shop by category"
+            cat_sec.content = json.dumps(c["cats"])
 
     # 5. Featured
     if "featured" in c:

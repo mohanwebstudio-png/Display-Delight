@@ -115,10 +115,14 @@ function HorizontalCategorySection({
   displayCats,
   products,
   isPreview,
+  title,
+  eyebrow,
 }: {
   displayCats: any[]
   products: any[]
   isPreview?: boolean
+  title?: string
+  eyebrow?: string
 }) {
   const sectionRef = useRef<HTMLDivElement>(null)
   const stickyRef = useRef<HTMLDivElement>(null)
@@ -258,10 +262,10 @@ function HorizontalCategorySection({
           <div className="flex items-end justify-between gap-6 pb-4 border-b border-line/50">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-brand mb-1">
-                Categories
+                {eyebrow || 'Categories'}
               </p>
               <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-navy">
-                Shop by category
+                {title || 'Shop by category'}
               </h2>
             </div>
 
@@ -503,11 +507,17 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
 
   // Categories from preview config or real DB
   const displayCats = useMemo(() => {
-    if (c?.cats && Array.isArray(c.cats) && c.cats.length > 0) {
-      return c.cats.map((k: string) => {
-        const found = categories.find((cat) => cat.id === k || cat.name.toLowerCase() === k.toLowerCase()) || CATS.find((cat) => cat.id === k)
+    const rawList = Array.isArray(c?.cats)
+      ? c.cats
+      : Array.isArray(c?.cats?.items)
+      ? c.cats.items
+      : null
+
+    if (rawList && rawList.length > 0) {
+      return rawList.map((k: string) => {
+        const found = categories.find((cat) => cat.id === k || cat.slug === k || cat.name.toLowerCase() === k.toLowerCase()) || CATS.find((cat) => cat.id === k)
         return found ? {
-          id: found.id,
+          id: found.id || found.slug,
           name: found.name,
           img: resolveAssetUrl(found.img),
           blurb: found.blurb || '',
@@ -521,7 +531,7 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
     }
     return homeData?.categories && homeData.categories.length > 0
       ? homeData.categories.map((cat) => ({
-          id: cat.slug,
+          id: cat.slug || cat.id,
           name: cat.name,
           img: resolveAssetUrl(cat.image_url || '/p/i-standee.jpg'),
           blurb: cat.description || '',
@@ -945,6 +955,8 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
         displayCats={displayCats}
         products={products}
         isPreview={Boolean(previewProps)}
+        title={c?.cats?.title || homeData?.cats?.title}
+        eyebrow={c?.cats?.subtitle || homeData?.cats?.subtitle}
       />
     ),
     featured: () => {

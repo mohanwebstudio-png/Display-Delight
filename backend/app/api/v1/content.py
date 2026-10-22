@@ -70,13 +70,40 @@ def get_homepage(
     sec_vis_map = {s.section_key: s.is_visible for s in all_sections}
 
     # 2. Featured categories
-    categories = (
+    cats_sec = next((s for s in all_sections if s.section_key == "cats"), None)
+    cats_title = (cats_sec.title if cats_sec and cats_sec.title else None) or "Shop by category"
+    cats_subtitle = (cats_sec.subtitle if cats_sec and cats_sec.subtitle else None) or "Categories"
+
+    all_published_cats = (
         db.query(Category)
         .filter(Category.status == PublishStatus.published)
         .order_by(Category.display_order.asc())
-        .limit(8)
         .all()
     )
+
+    chosen_cat_slugs = []
+    if cats_sec and cats_sec.content:
+        try:
+            parsed_c = json.loads(cats_sec.content) if isinstance(cats_sec.content, str) else cats_sec.content
+            if isinstance(parsed_c, dict):
+                chosen_cat_slugs = parsed_c.get("items", [])
+                if parsed_c.get("title"):
+                    cats_title = parsed_c["title"]
+                if parsed_c.get("subtitle"):
+                    cats_subtitle = parsed_c["subtitle"]
+            elif isinstance(parsed_c, list):
+                chosen_cat_slugs = parsed_c
+        except Exception:
+            pass
+
+    cat_map = {c.slug: c for c in all_published_cats if c.slug}
+    cat_map.update({str(c.id): c for c in all_published_cats})
+
+    if chosen_cat_slugs:
+        ordered_cats = [cat_map[str(k)] for k in chosen_cat_slugs if str(k) in cat_map]
+        categories = ordered_cats if ordered_cats else all_published_cats[:8]
+    else:
+        categories = all_published_cats[:8]
 
     # 3. Featured / Popular products
     products = (
@@ -292,6 +319,11 @@ def get_homepage(
         "sections_order": [s.section_key for s in visible_sections],
         "sections_visibility": sec_vis_map,
         "hero": hero_data,
+        "cats": {
+            "title": cats_title,
+            "subtitle": cats_subtitle,
+            "is_visible": cats_sec.is_visible if cats_sec else True,
+        },
         "announce": announce_data,
         "intro": intro_data,
         "video": video_data,

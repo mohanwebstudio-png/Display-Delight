@@ -64,7 +64,11 @@ const INIT = {
   announce: { text: '', link: '/shop' },
   header: { search: true, cart: true, account: true },
   hero: { headline: 'Light Up. Stand Out. Sell More!', sub: 'Digital standees, LED light boxes and custom signage for your business.', img: '/p/hero.jpg', video: '', c1: 'Shop products', c1to: '/shop', c2: 'Request a quote', c2to: '/quote' },
-  cats: CATS.map((c) => c.id) as string[],
+  cats: {
+    title: 'Shop by category',
+    subtitle: 'Categories',
+    items: CATS.map((c) => c.id) as string[],
+  },
   featured: PRODUCTS.slice(0, 6).map((p) => p.id),
   reels: { title: 'Demonstration Reels', sub: 'Watch real unboxing, illuminated LED glow tests, and 4K digital standee software walkthroughs.' },
   intro: { title: 'Signage built around your brand', text: 'Describe your company, what you make and who you serve.', img: '/p/lightbox-round.jpg' },
@@ -217,7 +221,16 @@ export function HomepageEditor(_: any) {
 
   const touch = () => setChanged(true)
   const set = <K extends keyof Cfg>(k: K, v: Partial<Cfg[K]> | Cfg[K]) => { setC((x) => ({ ...x, [k]: Array.isArray(v) ? v : { ...(x[k] as object), ...(v as object) } })); touch() }
-  const setList = (k: 'cats' | 'featured' | 'industries', v: any[]) => { setC((x) => ({ ...x, [k]: v })); touch() }
+  const setList = (k: 'cats' | 'featured' | 'industries', v: any[]) => {
+    setC((x) => {
+      if (k === 'cats') {
+        const prevCats = typeof x.cats === 'object' && x.cats !== null ? x.cats : { title: 'Shop by category', subtitle: 'Categories', items: [] }
+        return { ...x, cats: { ...prevCats, items: v } }
+      }
+      return { ...x, [k]: v }
+    })
+    touch()
+  }
   const label = SECS.find((s) => s[0] === sel)?.[1] || sel
   const toggleIn = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
 
@@ -260,7 +273,22 @@ export function HomepageEditor(_: any) {
             ...res.c,
             announce: { ...prev.announce, ...(res.c.announce || {}) },
             hero: { ...prev.hero, ...(res.c.hero || {}) },
-            cats: Array.isArray(res.c.cats) && res.c.cats.length > 0 ? res.c.cats : prev.cats,
+            cats: (() => {
+              if (res.c.cats && typeof res.c.cats === 'object' && !Array.isArray(res.c.cats)) {
+                return {
+                  title: res.c.cats.title || prev.cats.title,
+                  subtitle: res.c.cats.subtitle || prev.cats.subtitle,
+                  items: Array.isArray(res.c.cats.items) && res.c.cats.items.length > 0 ? res.c.cats.items : prev.cats.items,
+                }
+              }
+              if (Array.isArray(res.c.cats) && res.c.cats.length > 0) {
+                return {
+                  ...prev.cats,
+                  items: res.c.cats,
+                }
+              }
+              return prev.cats
+            })(),
             featured: Array.isArray(res.c.featured) && res.c.featured.length > 0 ? res.c.featured : prev.featured,
           }))
         }
@@ -311,7 +339,12 @@ export function HomepageEditor(_: any) {
     max?: number,
     getFallbackLabel?: (v: T) => string
   ) => {
-    const cur = c[k] as T[]
+    const rawVal = c[k]
+    const cur = (k === 'cats' && typeof rawVal === 'object' && rawVal !== null && !Array.isArray(rawVal)
+      ? (rawVal as any).items || []
+      : Array.isArray(rawVal)
+      ? rawVal
+      : []) as T[]
     return (
       <div className="space-y-4">
         <div>
@@ -394,9 +427,42 @@ export function HomepageEditor(_: any) {
         <div className="grid gap-3 rounded-dd border border-line p-3"><p className="text-xs font-bold uppercase tracking-wider text-ink-2">Secondary button</p><Input value={c.hero.c2} onChange={(e) => set('hero', { c2: e.target.value })} aria-label="Secondary label" /><PageSelect value={c.hero.c2to} onChange={(v) => set('hero', { c2to: v })} /></div></>
       case 'cats': {
         const catOptions = categories && categories.length > 0
-          ? categories.map((cat) => ({ v: cat.id as string, l: cat.name }))
+          ? categories.map((cat) => ({ v: (cat.slug || cat.id) as string, l: cat.name }))
           : CATS.map((x) => ({ v: x.id as string, l: x.name }))
-        return picker('cats', catOptions, undefined, getCategoryLabel)
+
+        const currentCats = typeof c.cats === 'object' && c.cats !== null ? c.cats : { title: 'Shop by category', subtitle: 'Categories', items: [] }
+
+        return (
+          <>
+            <Field label="Section title">
+              <Input
+                value={currentCats.title}
+                placeholder="Shop by category"
+                onChange={(e) => {
+                  set('cats', { ...currentCats, title: e.target.value })
+                }}
+              />
+            </Field>
+            <Field label="Eyebrow text">
+              <Input
+                value={currentCats.subtitle}
+                placeholder="Categories"
+                onChange={(e) => {
+                  set('cats', { ...currentCats, subtitle: e.target.value })
+                }}
+              />
+            </Field>
+
+            <div className="pt-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-ink-2 mb-2">
+                Categories Displayed on Homepage
+              </p>
+              {picker('cats', catOptions, undefined, getCategoryLabel)}
+            </div>
+
+            {link('/admin/taxonomy', 'Create new categories or change category photos, names & descriptions in Category Taxonomy.')}
+          </>
+        )
       }
       case 'featured': {
         const prodOptions = products && products.length > 0
