@@ -275,15 +275,20 @@ def save_homepage_editor_data(
     secs = payload.get("secs", [])
     secs_on_map = {s.get("id"): bool(s.get("on", True)) for s in secs}
     order_map = {s.get("id"): i for i, s in enumerate(secs, start=1) if s.get("id")}
+    created_map = {}
 
     def _get_or_create_sec(key: str, default_order: int) -> HomepageSection:
-        sec = db.query(HomepageSection).filter(HomepageSection.section_key == key).first()
-        order = order_map.get(key, default_order)
-        if not sec:
-            sec = HomepageSection(section_key=key, display_order=order)
-            db.add(sec)
+        if key in created_map:
+            sec = created_map[key]
         else:
-            sec.display_order = order
+            sec = db.query(HomepageSection).filter(HomepageSection.section_key == key).first()
+            if not sec:
+                sec = HomepageSection(section_key=key, display_order=default_order)
+                db.add(sec)
+            created_map[key] = sec
+
+        order = order_map.get(key, default_order)
+        sec.display_order = order
         sec.is_visible = secs_on_map.get(key, True)
         return sec
 
