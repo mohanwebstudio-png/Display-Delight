@@ -9,6 +9,23 @@ import { Header, Footer } from '../Layout'
 
 const MEDIA = ['/p/ultraslim.jpg', '/p/frames.jpg', '/p/backlit.jpg', '/p/i-standee.jpg', '/p/gazebo.jpg']
 
+const DEFAULT_SECS: Array<{ id: string; label: string }> = [
+  { id: 'announce', label: 'Announcement bar' },
+  { id: 'header', label: 'Header & logo' },
+  { id: 'hero', label: 'Hero banner' },
+  { id: 'cats', label: 'Category grid' },
+  { id: 'featured', label: 'Featured products' },
+  { id: 'intro', label: 'Introduction / story' },
+  { id: 'industries', label: 'Industries' },
+  { id: 'logos', label: 'Client logos' },
+  { id: 'video', label: 'Video spotlight' },
+  { id: 'benefits', label: 'Why choose us (benefits)' },
+  { id: 'gallery', label: 'Gallery & media' },
+  { id: 'tf', label: 'FAQs & reviews' },
+  { id: 'contact', label: 'Call to action banner' },
+  { id: 'footer', label: 'Footer & policies' },
+]
+
 export interface HomePreviewProps {
   secs?: Array<{ id: string; on: boolean; label?: string }>
   c?: any
@@ -169,29 +186,6 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
     return faqs.length > 0 ? faqs : (FALLBACK_FAQS as any)
   }, [c?.tf?.faqs, faqs])
 
-  // User requirement:
-  // "before the realtime data got loaded show the loading page dont show the defaut details on the website"
-  if (!previewProps && (loading || (!homeData && isLoadingCatalogue))) {
-    return <StoreLoader title="Loading DisplayDelight Displays" subtitle="Synchronizing real-time commercial catalogue & showroom..." />
-  }
-
-  const defaultSecs: Array<{ id: string; label: string }> = [
-    { id: 'announce', label: 'Announcement bar' },
-    { id: 'header', label: 'Header & logo' },
-    { id: 'hero', label: 'Hero banner' },
-    { id: 'cats', label: 'Category grid' },
-    { id: 'featured', label: 'Featured products' },
-    { id: 'intro', label: 'Introduction / story' },
-    { id: 'industries', label: 'Industries' },
-    { id: 'logos', label: 'Client logos' },
-    { id: 'video', label: 'Video spotlight' },
-    { id: 'benefits', label: 'Why choose us (benefits)' },
-    { id: 'gallery', label: 'Gallery & media' },
-    { id: 'tf', label: 'FAQs & reviews' },
-    { id: 'contact', label: 'Call to action banner' },
-    { id: 'footer', label: 'Footer & policies' },
-  ]
-
   const activeSecs = useMemo(() => {
     if (previewProps?.secs && previewProps.secs.length > 0) {
       return previewProps.secs
@@ -201,12 +195,12 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
       const list: Array<{ id: string; label: string; on: boolean }> = []
       const seen = new Set<string>()
       orderFromDb.forEach((key: string) => {
-        const def = defaultSecs.find((d) => d.id === key)
+        const def = DEFAULT_SECS.find((d) => d.id === key)
         const isVis = homeData?.sections_visibility ? homeData.sections_visibility[key] !== false : true
         list.push({ id: key, label: def?.label || key, on: isVis })
         seen.add(key)
       })
-      defaultSecs.forEach((def) => {
+      DEFAULT_SECS.forEach((def) => {
         if (!seen.has(def.id)) {
           const isVis = homeData?.sections_visibility ? homeData.sections_visibility[def.id] !== false : true
           list.push({ ...def, on: isVis })
@@ -214,8 +208,14 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
       })
       return list
     }
-    return defaultSecs.map((s) => ({ ...s, on: true }))
+    return DEFAULT_SECS.map((s) => ({ ...s, on: true }))
   }, [previewProps?.secs, homeData?.sections_order, homeData?.sections, homeData?.sections_visibility])
+
+  // User requirement:
+  // "before the realtime data got loaded show the loading page dont show the defaut details on the website"
+  if (!previewProps && (loading || (!homeData && isLoadingCatalogue))) {
+    return <StoreLoader title="Loading DisplayDelight Displays" subtitle="Synchronizing real-time commercial catalogue & showroom..." />
+  }
 
   const isVisible = (key: string) => {
     if (previewProps?.secs) {
@@ -770,7 +770,7 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
         if (!render) return null
         const content = render()
         if (!content) return null
-        const label = sec.label || defaultSecs.find((d) => d.id === sec.id)?.label || sec.id
+        const label = sec.label || DEFAULT_SECS.find((d) => d.id === sec.id)?.label || sec.id
         return renderSectionWrapper(sec.id, content, label, idx, activeSecs.length)
       })}
 
