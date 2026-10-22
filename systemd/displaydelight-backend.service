@@ -1,0 +1,22 @@
+[Unit]
+Description=DisplayDelight V2 FastAPI Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/displaydelight/backend
+Environment="PATH=/var/www/displaydelight/backend/venv/bin:/usr/local/bin:/usr/bin"
+Environment="PYTHONPATH=/var/www/displaydelight/backend"
+EnvironmentFile=-/var/www/displaydelight/backend/.env
+ExecStart=/var/www/displaydelight/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 3 --proxy-headers --forwarded-allow-ips='*'
+Restart=always
+RestartSec=5s
+KillMode=mixed
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

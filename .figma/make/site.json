@@ -1,0 +1,10 @@
+{
+  "description": "A premium digital signage e-commerce platform offering customizable business display products with a user-friendly shopping and admin management experience.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
