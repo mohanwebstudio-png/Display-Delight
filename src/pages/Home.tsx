@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, type ReactNode } from 'react'
-import { ArrowRight, ArrowUp, ArrowDown, ArrowUpRight, Layers, Mail, MessageCircle, Play, Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X } from 'lucide-react'
+import { ArrowRight, ArrowUp, ArrowDown, ArrowUpRight, Layers, Mail, MessageCircle, Play, Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X, ShieldCheck, Box, SlidersHorizontal, Check, RefreshCw } from 'lucide-react'
 import { INDUSTRIES, FAQS as FALLBACK_FAQS, CATS, byId } from '../data'
 import { Link, useApp, resolveAssetUrl } from '../store'
 import { Accordion, Btn, Container, ProductCard, SectionHead, Badge, InstagramIcon, cx } from '../ui'
@@ -8,6 +8,73 @@ import StoreLoader from '../components/StoreLoader'
 import { Header, Footer } from '../Layout'
 
 const MEDIA = ['/p/ultraslim.jpg', '/p/frames.jpg', '/p/backlit.jpg', '/p/i-standee.jpg', '/p/gazebo.jpg']
+
+interface CategoryEnhancement {
+  badge: string
+  tagline: string
+  specs: string[]
+  startingPrice?: string
+  badgeBg: string
+  gradient: string
+  highlight?: string
+}
+
+const CATEGORY_META: Record<string, CategoryEnhancement> = {
+  'led-fabric-signage': {
+    badge: '✦ Commercial Flagship',
+    tagline: 'High-Lumen Edge Lit SEG Fabric Signage',
+    specs: ['60-100mm Extruded Frame', 'Silicone Edge Tension Fabric', 'Edge-to-Edge Glow'],
+    startingPrice: 'Custom Sizing & Quote',
+    badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-400/30',
+    gradient: 'from-amber-600/30 via-orange-600/10 to-transparent',
+    highlight: 'Seamless SEG Fabric',
+  },
+  'premium-ultra-slim': {
+    badge: '★ Best Seller',
+    tagline: 'Edge-Lit Optical Acrylic Snap Frame',
+    specs: ['A5 to B0 Paper Formats', 'Magnetic Snap Front Profile', 'HP High-Res Print Included'],
+    startingPrice: 'From ₹950',
+    badgeBg: 'bg-blue-500/20 text-blue-300 border-blue-400/30',
+    gradient: 'from-blue-600/30 via-cyan-600/10 to-transparent',
+    highlight: 'Ultra-Slim 18mm',
+  },
+  'card-stands': {
+    badge: 'Cast Optical Acrylic',
+    tagline: 'Double-Sided Tabletop & QR Stand',
+    specs: ['Optical Cast Acrylic', 'Scratch Resistant Polish', 'Visiting Card to A4'],
+    startingPrice: 'From ₹150',
+    badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30',
+    gradient: 'from-emerald-600/30 via-teal-600/10 to-transparent',
+    highlight: 'Crystal Optical Clarity',
+  },
+  'lollipop-boards': {
+    badge: 'High-Street Visibility',
+    tagline: 'Illuminated Projection Signage',
+    specs: ['360° Motorized & Static', 'Outdoor IP65 Weatherproof', 'Heavy-Duty Bracket Flange'],
+    startingPrice: 'From ₹3,000',
+    badgeBg: 'bg-violet-500/20 text-violet-300 border-violet-400/30',
+    gradient: 'from-violet-600/30 via-purple-600/10 to-transparent',
+    highlight: 'Double-Sided Projection',
+  },
+  'e-series': {
+    badge: 'Commercial Digital Poster',
+    tagline: 'Non-Touch 24/7 Smart Broadcast',
+    specs: ['Android 9 Embedded OS', '350 Nits Commercial Panel', 'Wall & Floor A-Stand Mount'],
+    startingPrice: 'From ₹23,160',
+    badgeBg: 'bg-sky-500/20 text-sky-300 border-sky-400/30',
+    gradient: 'from-sky-600/30 via-indigo-600/10 to-transparent',
+    highlight: '24/7 Continuous Run',
+  },
+  'trueview': {
+    badge: '4K Commercial Grade',
+    tagline: 'Interactive Smart Kiosk & Standee',
+    specs: ['4K IPS Display Panel', 'Android 11 & DOS Dual OS', 'High-Lumen 450 Nits'],
+    startingPrice: 'From ₹34,900',
+    badgeBg: 'bg-rose-500/20 text-rose-300 border-rose-400/30',
+    gradient: 'from-rose-600/30 via-red-600/10 to-transparent',
+    highlight: 'Ultra HD 4K Touch',
+  },
+}
 
 const DEFAULT_SECS: Array<{ id: string; label: string }> = [
   { id: 'announce', label: 'Announcement bar' },
@@ -43,6 +110,7 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
   const [loading, setLoading] = useState(!previewProps)
   const [activeVideoModal, setActiveVideoModal] = useState<string | null>(null)
   const [activeInstagram, setActiveInstagram] = useState<{ embedUrl: string; cleanUrl: string; title: string } | null>(null)
+  const [activeCatTab, setActiveCatTab] = useState<string>('all')
 
   useEffect(() => {
     let active = true
@@ -133,6 +201,12 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
         }))
       : categories
   }, [c?.cats, homeData?.categories, categories])
+
+  // Filtered categories based on selected category tab
+  const filteredCats = useMemo(() => {
+    if (activeCatTab === 'all') return displayCats
+    return displayCats.filter((cat) => cat.id === activeCatTab || cat.name.toLowerCase().includes(activeCatTab.toLowerCase()))
+  }, [displayCats, activeCatTab])
 
   // Approved testimonials from DB
   const testimonials = homeData?.testimonials || []
@@ -384,35 +458,291 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
       </section>
     ),
     cats: () => (
-      <section className="py-12 sm:py-20">
+      <section className="relative overflow-hidden bg-gradient-to-b from-white via-soft/30 to-white py-14 sm:py-24">
         <Container>
-          <SectionHead eyebrow="Shop by category" title="Everything your space needs to be seen" action={<Btn variant="tertiary" to="/shop" iconRight icon={<ArrowRight className="size-4" />}>All products</Btn>} />
-          <div className="cat-bento grid auto-rows-[160px] grid-cols-2 gap-2.5 sm:auto-rows-[220px] sm:gap-4 lg:grid-cols-4 lg:auto-rows-[230px]">
-            {displayCats.map((cat, i) => (
-              <Link key={cat.id} to={`/category/${cat.id}`} className={`group relative overflow-hidden rounded-xl bg-[#e9e6e1] ${i === 0 ? 'col-span-2 row-span-2' : i === 3 ? 'lg:col-span-2' : ''}`}>
-                <img
-                  src={resolveAssetUrl(cat.img)}
-                  alt={cat.name}
-                  loading="lazy"
-                  className="size-full object-cover transition duration-700 group-hover:scale-105"
-                  onError={(e) => {
-                    const t = e.currentTarget
-                    if (!t.dataset.fallback) {
-                      t.dataset.fallback = '1'
-                      t.src = resolveAssetUrl('/p/i-standee.jpg')
-                    }
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/10 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5 text-white sm:gap-3 sm:p-4 md:p-5">
-                  <div>
-                    <h3 className={`font-bold leading-none ${i === 0 ? 'text-xl sm:text-4xl md:text-5xl' : 'text-sm xs:text-base sm:text-2xl md:text-3xl'}`}>{cat.name}</h3>
-                    {(i === 0 || i === 3) && <p className="mt-1 line-clamp-2 max-w-xs text-xs text-white/80 sm:mt-2 sm:text-sm">{cat.blurb}</p>}
-                  </div>
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-white/15 backdrop-blur transition group-hover:bg-brand sm:size-10"><ArrowUpRight className="size-3.5 sm:size-5" /></span>
+          {/* Section Header */}
+          <div className="mb-8 sm:mb-12">
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-line/60">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-bold tracking-wider uppercase mb-3.5">
+                  <span className="relative flex size-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-brand" />
+                  </span>
+                  Commercial Display Hardware
                 </div>
-              </Link>
-            ))}
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-navy leading-[1.15]">
+                  Everything your space needs to be seen
+                </h2>
+                <p className="mt-3 text-sm sm:text-base text-ink-2 leading-relaxed">
+                  Engineered for retail flagships, exhibition pavilions, corporate lobbies, and hospitality spaces. Choose an architectural series below or request custom fabrication.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <Btn
+                  variant="secondary"
+                  to="/shop"
+                  iconRight
+                  icon={<ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />}
+                  className="shadow-sm font-semibold text-sm"
+                >
+                  View all products ({products.length || 24})
+                </Btn>
+              </div>
+            </div>
+
+            {/* Category Quick-Nav Switcher Tabs */}
+            <div className="mt-6 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setActiveCatTab('all')}
+                className={cx(
+                  'shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer',
+                  activeCatTab === 'all'
+                    ? 'bg-navy text-white shadow-sm ring-1 ring-navy'
+                    : 'bg-white hover:bg-slate-100 text-ink-2 hover:text-ink border border-line shadow-2xs'
+                )}
+              >
+                <span>All Categories</span>
+                <span className={cx('px-1.5 py-0.5 rounded-full text-[10px]', activeCatTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-ink-2')}>
+                  {displayCats.length}
+                </span>
+              </button>
+
+              {displayCats.map((cat) => {
+                const isSelected = activeCatTab === cat.id
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setActiveCatTab(isSelected ? 'all' : cat.id)}
+                    className={cx(
+                      'shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer',
+                      isSelected
+                        ? 'bg-navy text-white shadow-sm ring-1 ring-navy'
+                        : 'bg-white hover:bg-slate-100 text-ink-2 hover:text-ink border border-line shadow-2xs'
+                    )}
+                  >
+                    <span>{cat.name}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {activeCatTab !== 'all' && (
+              <div className="mt-3 flex items-center justify-between text-xs text-ink-2">
+                <span>Filtering by active category</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveCatTab('all')}
+                  className="text-brand hover:underline font-semibold cursor-pointer"
+                >
+                  Show all categories
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Modern Architectural Bento Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-6">
+            {filteredCats.map((cat, i) => {
+              const meta = CATEGORY_META[cat.id] || {
+                badge: '✦ Commercial Series',
+                tagline: cat.blurb || 'Engineered Display Solutions',
+                specs: ['Commercial Specifications', 'Durable Construction', 'Direct Support'],
+                startingPrice: undefined,
+                badgeBg: 'bg-white/15 text-white border-white/20',
+                gradient: 'from-brand/30 via-navy/20 to-transparent',
+              }
+
+              // Find products belonging to this category
+              const catProducts = products.filter(
+                (p) =>
+                  p.cat === cat.id ||
+                  p.category_slug === cat.id ||
+                  p.category_id === cat.id ||
+                  p.cat?.toLowerCase() === cat.name?.toLowerCase() ||
+                  (p.cat && cat.id && p.cat.replace(/-/g, '') === cat.id.replace(/-/g, ''))
+              )
+              const productCount = catProducts.length
+              const validPrices = catProducts
+                .map((p) => p.price)
+                .filter((pr): pr is number => typeof pr === 'number' && pr > 0)
+              const dynamicMinPrice = validPrices.length > 0 ? Math.min(...validPrices) : null
+              const priceDisplay = meta.startingPrice || (dynamicMinPrice ? `From ₹${dynamicMinPrice.toLocaleString('en-IN')}` : 'Custom Sizing')
+              const isHero = activeCatTab === 'all' && i === 0
+
+              return (
+                <Link
+                  key={cat.id}
+                  to={`/category/${cat.id}`}
+                  className={cx(
+                    'group relative flex flex-col justify-between overflow-hidden rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800/80 shadow-md hover:shadow-2xl hover:shadow-brand/20 transition-all duration-500',
+                    activeCatTab === 'all'
+                      ? (i === 0
+                          ? 'md:col-span-2 lg:col-span-7 lg:row-span-2 min-h-[440px] sm:min-h-[500px] lg:min-h-[540px]'
+                          : i === 1 || i === 2
+                          ? 'md:col-span-1 lg:col-span-5 min-h-[230px] sm:min-h-[250px] lg:min-h-[258px]'
+                          : 'md:col-span-1 lg:col-span-4 min-h-[270px] sm:min-h-[290px] lg:min-h-[310px]')
+                      : filteredCats.length === 1
+                      ? 'col-span-full max-w-4xl mx-auto w-full min-h-[440px]'
+                      : 'md:col-span-1 lg:col-span-4 min-h-[280px]'
+                  )}
+                >
+                  {/* Background Image with smooth zoom & brightness balance */}
+                  <img
+                    src={resolveAssetUrl(cat.img)}
+                    alt={cat.name}
+                    loading="lazy"
+                    className="absolute inset-0 size-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 group-hover:brightness-95"
+                    onError={(e) => {
+                      const t = e.currentTarget
+                      if (!t.dataset.fallback) {
+                        t.dataset.fallback = '1'
+                        t.src = resolveAssetUrl('/p/i-standee.jpg')
+                      }
+                    }}
+                  />
+
+                  {/* Top contrast gradient */}
+                  <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+
+                  {/* Deep lower gradient for crystal-clear readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/75 via-45% to-slate-950/15 pointer-events-none" />
+
+                  {/* Ambient category color glow on hover */}
+                  <div
+                    className={cx(
+                      'absolute inset-0 bg-gradient-to-tr opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none',
+                      meta.gradient
+                    )}
+                  />
+
+                  {/* Inset ring with subtle glow on hover */}
+                  <div className="absolute inset-0 rounded-2xl sm:rounded-3xl ring-1 ring-inset ring-white/10 group-hover:ring-brand/50 transition-colors duration-300 pointer-events-none" />
+
+                  {/* Top Deck: Floating Category Badges */}
+                  <div className="relative z-10 flex items-center justify-between gap-2 p-3.5 sm:p-5">
+                    <span
+                      className={cx(
+                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold tracking-wide uppercase shadow-sm backdrop-blur-md border transition-all duration-300',
+                        meta.badgeBg
+                      )}
+                    >
+                      {meta.badge}
+                    </span>
+
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-md border border-white/15 text-white/95 text-xs font-semibold shadow-xs">
+                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>{priceDisplay}</span>
+                    </span>
+                  </div>
+
+                  {/* Bottom Deck: Title, Specs & Action Callout */}
+                  <div className="relative z-10 flex flex-col justify-end p-4 sm:p-6 md:p-7 text-white">
+                    {/* Category Title */}
+                    <h3
+                      className={cx(
+                        'font-black tracking-tight leading-tight group-hover:text-amber-200 transition-colors duration-300 drop-shadow-sm',
+                        isHero
+                          ? 'text-2xl sm:text-4xl lg:text-5xl mb-2'
+                          : 'text-xl sm:text-2xl lg:text-3xl mb-1.5'
+                      )}
+                    >
+                      {cat.name}
+                    </h3>
+
+                    {/* Blurb / Tagline */}
+                    <p
+                      className={cx(
+                        'text-white/85 font-normal leading-relaxed text-xs sm:text-sm line-clamp-2 max-w-xl mb-3',
+                        isHero ? 'sm:text-base sm:line-clamp-3' : ''
+                      )}
+                    >
+                      {cat.blurb || meta.tagline}
+                    </p>
+
+                    {/* Feature Spec Chips (visible for hero card) */}
+                    {isHero && (
+                      <div className="hidden sm:flex flex-wrap gap-2 mb-4">
+                        {meta.specs.map((spec, sIdx) => (
+                          <span
+                            key={sIdx}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/15 text-xs text-white/95 font-medium"
+                          >
+                            <span className="size-1 rounded-full bg-brand" />
+                            {spec}
+                          </span>
+                        ))}
+                        {productCount > 0 && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-brand/25 backdrop-blur-md border border-brand/35 text-xs text-amber-200 font-semibold">
+                            {productCount} {productCount === 1 ? 'Model Available' : 'Models Available'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Action Row */}
+                    <div className="flex items-center justify-between gap-3 border-t border-white/15 pt-3.5 mt-1">
+                      <div className="flex items-center gap-2 text-xs text-white/70">
+                        <span className="font-medium text-white/90">
+                          {productCount > 0 ? `${productCount} products in catalogue` : 'Commercial solution'}
+                        </span>
+                      </div>
+
+                      <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-xs font-bold shadow-md transition-all duration-300 group-hover:bg-brand group-hover:border-brand group-hover:text-white group-hover:shadow-brand/40">
+                        <span>{isHero ? 'Explore Series' : 'View Range'}</span>
+                        <ArrowUpRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+
+          {/* Bottom Capabilities & Guarantee Ribbon */}
+          <div className="mt-8 sm:mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 border-t border-line/60 pt-6 sm:pt-8">
+            <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+                <Ruler className="size-4" />
+              </span>
+              <div>
+                <p className="text-xs font-bold text-navy">Custom Fabrication</p>
+                <p className="text-[11px] text-ink-2 mt-0.5">Millimeter custom dimensions & artwork</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600">
+                <Truck className="size-4" />
+              </span>
+              <div>
+                <p className="text-xs font-bold text-navy">PAN-India Dispatch</p>
+                <p className="text-[11px] text-ink-2 mt-0.5">Wooden crated secure freight transit</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-blue-500/10 text-blue-600">
+                <Box className="size-4" />
+              </span>
+              <div>
+                <p className="text-xs font-bold text-navy">Complete Assemblies</p>
+                <p className="text-[11px] text-ink-2 mt-0.5">Adapters, mounts & HP prints included</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-purple-500/10 text-purple-600">
+                <ShieldCheck className="size-4" />
+              </span>
+              <div>
+                <p className="text-xs font-bold text-navy">Commercial Warranty</p>
+                <p className="text-[11px] text-ink-2 mt-0.5">1-Year hardware warranty & quote desk</p>
+              </div>
+            </div>
           </div>
         </Container>
       </section>
