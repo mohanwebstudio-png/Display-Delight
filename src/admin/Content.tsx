@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Film, GripVertical, Image as ImgIcon, Indent, Italic, LayoutGrid, Link2, List, ListOrdered, Lock, Maximize2, Minimize2, Play, Plus, RefreshCw, Rocket, Save, Search, Trash2, Upload, X, Outdent, ShieldCheck, Check, ExternalLink, Video } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Film, GripVertical, Image as ImgIcon, Indent, Italic, LayoutGrid, Link2, List, ListOrdered, Lock, Maximize2, Minimize2, Play, Plus, RefreshCw, Rocket, Save, Search, Trash2, Upload, X, Outdent, ShieldCheck, Check, ExternalLink, Video, SlidersHorizontal } from 'lucide-react'
 import { Badge, Btn, Check_, Drawer, EmptyState, Field, Input, Modal, Notice, Segmented, Select, StarRating, Switch, Tabs, Textarea, Uploader, useUpload, cx, InstagramIcon } from '../ui'
 import { go, useApp } from '../store'
 import { CATS, FAQS, INDUSTRIES, PRODUCTS, byId, catName } from '../data'
@@ -80,6 +80,7 @@ function Preview({
   secs,
   c,
   sel,
+  editOpen,
   onSel,
   onMoveSec,
   onToggleSec,
@@ -88,6 +89,7 @@ function Preview({
   secs: { id: string; on: boolean; label?: string }[]
   c: Cfg
   sel?: string
+  editOpen?: boolean
   onSel?: (id: string) => void
   onMoveSec?: (id: string, delta: number) => void
   onToggleSec?: (id: string, on: boolean) => void
@@ -108,6 +110,7 @@ function Preview({
                 secs,
                 c,
                 selectedSection: sel,
+                editOpen,
                 onSelectSection: onSel,
                 onMoveSection: onMoveSec,
                 onToggleSection: onToggleSec,
@@ -134,6 +137,7 @@ function Preview({
                 secs,
                 c,
                 selectedSection: sel,
+                editOpen,
                 onSelectSection: onSel,
                 onMoveSection: onMoveSec,
                 onToggleSection: onToggleSec,
@@ -170,6 +174,7 @@ function Preview({
             secs,
             c,
             selectedSection: sel,
+            editOpen,
             onSelectSection: onSel,
             onMoveSection: onMoveSec,
             onToggleSection: onToggleSec,
@@ -182,10 +187,11 @@ function Preview({
 }
 
 export function HomepageEditor(_: any) {
-  const { toast } = useApp()
+  const { toast, categories, products } = useApp()
   const [secs, setSecs] = useState(SECS.map(([id, label]) => ({ id: id as string, label: label as string, on: true })))
   const [c, setC] = useState<Cfg>(INIT)
   const [sel, setSel] = useState('hero')
+  const [editOpen, setEditOpen] = useState(false)
   const [state, setState] = useState<'Draft' | 'Published'>('Published')
   const [changed, setChanged] = useState(false)
   const [tab, setTab] = useState('sections')
@@ -196,11 +202,39 @@ export function HomepageEditor(_: any) {
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
 
+  const openEdit = (id?: string) => {
+    if (id) setSel(id)
+    setEditOpen(true)
+    setTab('edit')
+    if (focusCanvas) setFocusCanvas(false)
+  }
+
+  const closeEdit = () => {
+    setEditOpen(false)
+    setTab('sections')
+  }
+
   const touch = () => setChanged(true)
   const set = <K extends keyof Cfg>(k: K, v: Partial<Cfg[K]> | Cfg[K]) => { setC((x) => ({ ...x, [k]: Array.isArray(v) ? v : { ...(x[k] as object), ...(v as object) } })); touch() }
   const setList = (k: 'cats' | 'featured' | 'industries', v: any[]) => { setC((x) => ({ ...x, [k]: v })); touch() }
-  const label = SECS.find((s) => s[0] === sel)![1]
+  const label = SECS.find((s) => s[0] === sel)?.[1] || sel
   const toggleIn = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
+
+  const getCategoryLabel = (id: string | number) => {
+    const fromStore = categories?.find((cat) => cat.id === id || cat.slug === id)
+    if (fromStore) return fromStore.name
+    const fromStatic = CATS.find((cat) => cat.id === id)
+    if (fromStatic) return fromStatic.name
+    return String(id)
+  }
+
+  const getProductLabel = (id: string | number) => {
+    const fromStore = products?.find((p) => p.id === id || p.sku === id || p.slug === id)
+    if (fromStore) return `${fromStore.name} (₹${(fromStore.price ?? 0).toLocaleString('en-IN')})`
+    const fromStatic = PRODUCTS.find((p) => p.id === id)
+    if (fromStatic) return `${fromStatic.name} (₹${(fromStatic.price ?? 0).toLocaleString('en-IN')})`
+    return String(id)
+  }
 
   const moveSec = (id: string, delta: number) => {
     setSecs((prev) => {
@@ -270,13 +304,77 @@ export function HomepageEditor(_: any) {
     }
   }
 
-  const picker = <T extends string | number>(k: 'cats' | 'featured' | 'industries', all: { v: T; l: string }[], max?: number) => {
+  const picker = <T extends string | number>(
+    k: 'cats' | 'featured' | 'industries',
+    all: { v: T; l: string }[],
+    max?: number,
+    getFallbackLabel?: (v: T) => string
+  ) => {
     const cur = c[k] as T[]
     return (
       <div className="space-y-4">
-        <div><p className="mb-2 text-[13px] font-semibold">Shown on homepage ({cur.length}), in order</p>
-          {cur.length === 0 ? <p className="text-sm text-ink-2">Nothing selected.</p> : <ul className="space-y-1.5">{cur.map((v, i) => <li key={String(v)} className="flex items-center justify-between rounded-dd border border-line px-2.5 py-1.5 text-sm"><span className="truncate">{all.find((a) => a.v === v)?.l}</span><Mover i={i} n={cur.length} onMove={(d) => setList(k, mv(cur, i, d))} extra={<button aria-label="Remove" onClick={() => setList(k, cur.filter((x) => x !== v))} className="grid size-7 place-items-center rounded hover:bg-soft"><X className="size-4" /></button>} /></li>)}</ul>}</div>
-        <div><p className="mb-2 text-[13px] font-semibold">Available</p><div className="max-h-56 space-y-2.5 overflow-y-auto pr-1">{all.map((a) => <Check_ key={String(a.v)} checked={cur.includes(a.v)} disabled={!cur.includes(a.v) && !!max && cur.length >= max} onChange={() => setList(k, toggleIn(cur, a.v))} label={a.l} />)}</div></div>
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[13px] font-semibold text-ink">
+              Shown on homepage ({cur.length}{max ? ` / max ${max}` : ''})
+            </p>
+            {cur.length > 0 && (
+              <span className="text-[11px] text-ink-2">Drag or use arrows to order</span>
+            )}
+          </div>
+          {cur.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-line p-3 text-center text-xs text-ink-2">
+              No items selected yet. Choose from available items below.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {cur.map((v, i) => {
+                const labelText = all.find((a) => a.v === v)?.l || (getFallbackLabel ? getFallbackLabel(v) : String(v))
+                return (
+                  <li
+                    key={String(v)}
+                    className="flex items-center justify-between rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs shadow-xs"
+                  >
+                    <span className="truncate max-w-[210px] font-medium text-ink">{labelText}</span>
+                    <Mover
+                      i={i}
+                      n={cur.length}
+                      onMove={(d) => setList(k, mv(cur, i, d))}
+                      extra={
+                        <button
+                          type="button"
+                          aria-label="Remove item"
+                          onClick={() => setList(k, cur.filter((x) => x !== v))}
+                          className="grid size-6 place-items-center rounded hover:bg-soft text-ink-2 hover:text-red-600 transition"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      }
+                    />
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+        <div>
+          <p className="mb-2 text-[13px] font-semibold text-ink">Available options</p>
+          <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-line bg-soft/30 p-2 pr-1">
+            {all.map((a) => {
+              const isChecked = cur.includes(a.v)
+              const isDisabled = !isChecked && !!max && cur.length >= max
+              return (
+                <Check_
+                  key={String(a.v)}
+                  checked={isChecked}
+                  disabled={isDisabled}
+                  onChange={() => setList(k, toggleIn(cur, a.v))}
+                  label={a.l}
+                />
+              )
+            })}
+          </div>
+        </div>
       </div>
     )
   }
@@ -293,8 +391,18 @@ export function HomepageEditor(_: any) {
         <Field label="Video URL (optional)" hint="Used instead of the image when set."><Input value={c.hero.video} onChange={(e) => set('hero', { video: e.target.value })} placeholder="Paste a video link" /></Field>
         <div className="grid gap-3 rounded-dd border border-line p-3"><p className="text-xs font-bold uppercase tracking-wider text-ink-2">Primary button</p><Input value={c.hero.c1} onChange={(e) => set('hero', { c1: e.target.value })} aria-label="Primary label" /><PageSelect value={c.hero.c1to} onChange={(v) => set('hero', { c1to: v })} /></div>
         <div className="grid gap-3 rounded-dd border border-line p-3"><p className="text-xs font-bold uppercase tracking-wider text-ink-2">Secondary button</p><Input value={c.hero.c2} onChange={(e) => set('hero', { c2: e.target.value })} aria-label="Secondary label" /><PageSelect value={c.hero.c2to} onChange={(v) => set('hero', { c2to: v })} /></div></>
-      case 'cats': return picker('cats', CATS.map((x) => ({ v: x.id as string, l: x.name })))
-      case 'featured': return picker('featured', PRODUCTS.map((p) => ({ v: p.id, l: p.name })), 8)
+      case 'cats': {
+        const catOptions = categories && categories.length > 0
+          ? categories.map((cat) => ({ v: cat.id as string, l: cat.name }))
+          : CATS.map((x) => ({ v: x.id as string, l: x.name }))
+        return picker('cats', catOptions, undefined, getCategoryLabel)
+      }
+      case 'featured': {
+        const prodOptions = products && products.length > 0
+          ? products.map((p) => ({ v: p.id, l: `${p.name} (₹${(p.price ?? 0).toLocaleString('en-IN')})` }))
+          : PRODUCTS.map((p) => ({ v: p.id, l: p.name }))
+        return picker('featured', prodOptions, 8, getProductLabel)
+      }
       case 'intro': return <><Field label="Heading"><Input value={c.intro.title} onChange={(e) => set('intro', { title: e.target.value })} /></Field><Field label="Text"><Textarea value={c.intro.text} onChange={(e) => set('intro', { text: e.target.value })} className="min-h-32" /></Field><ImgField value={c.intro.img} onChange={(s) => set('intro', { img: s })} /></>
       case 'industries': return picker('industries', INDUSTRIES.map((x, i) => ({ v: i, l: x[0] })), 8)
       case 'logos': return link('/admin/logos', 'Logos are verified and managed in Client logos. Empty slots stay hidden on the live site.')
@@ -311,11 +419,20 @@ export function HomepageEditor(_: any) {
     <>
       <Badge tone={state === 'Published' && !changed ? 'ok' : 'neutral'} dot>{state}</Badge>
       {changed && <Badge tone="warn">Unpublished changes</Badge>}
+      <Btn
+        size="sm"
+        variant={editOpen ? 'dark' : 'secondary'}
+        icon={<SlidersHorizontal className="size-4" />}
+        onClick={() => (editOpen ? closeEdit() : openEdit(sel))}
+      >
+        {editOpen ? 'Hide Edit Panel' : `Edit Content (${label})`}
+      </Btn>
       <Btn size="sm" variant="secondary" icon={<Eye className="size-4" />} onClick={() => setPrev(true)}>Preview</Btn>
       <Btn size="sm" variant="secondary" icon={<Save className="size-4" />} onClick={() => saveHomepage(false)}>Save draft</Btn>
       <Btn size="sm" icon={<Rocket className="size-4" />} onClick={() => setPub(true)}>Publish</Btn>
     </>
   )
+
   const list = (
     <Card
       pad={false}
@@ -373,7 +490,9 @@ export function HomepageEditor(_: any) {
             }}
             className={cx(
               'group flex items-center gap-1.5 px-2 py-2 rounded-lg transition-all duration-150 cursor-grab active:cursor-grabbing select-none',
-              sel === s.id ? 'bg-brand/10 border-l-4 border-brand shadow-xs' : 'hover:bg-soft',
+              editOpen && sel === s.id
+                ? 'bg-brand/15 border-l-4 border-brand shadow-xs'
+                : 'hover:bg-soft',
               dragOverIdx === i && 'border-t-2 border-brand bg-brand-soft/80 scale-[1.01]',
               dragIdx === i && 'opacity-35 scale-95',
               !s.on && 'opacity-50 bg-neutral-50/70'
@@ -387,10 +506,27 @@ export function HomepageEditor(_: any) {
             </span>
             <button
               type="button"
-              onClick={() => { setSel(s.id); setTab('edit') }}
+              onClick={() => openEdit(s.id)}
               className="min-w-0 flex-1 truncate text-left text-xs font-semibold text-ink hover:text-brand"
             >
               {s.label}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                openEdit(s.id)
+              }}
+              title={`Edit ${s.label}`}
+              className={cx(
+                'flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold transition shrink-0',
+                editOpen && sel === s.id
+                  ? 'bg-brand text-white shadow-xs'
+                  : 'bg-brand/10 text-brand hover:bg-brand hover:text-white'
+              )}
+            >
+              <SlidersHorizontal className="size-3" />
+              <span>{editOpen && sel === s.id ? 'Editing' : 'Edit'}</span>
             </button>
             <div className="flex items-center gap-0.5 shrink-0">
               <button
@@ -433,7 +569,71 @@ export function HomepageEditor(_: any) {
       </ul>
     </Card>
   )
-  const show = (t: string) => cx(tab === t ? 'block' : 'hidden', 'lg:block')
+
+  const editPanelCard = (
+    <div className="rounded-xl border border-line bg-white shadow-md overflow-hidden">
+      {/* Edit Panel Header */}
+      <div className="flex items-center justify-between border-b border-line bg-soft/70 px-4 py-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="grid size-7 place-items-center rounded-lg bg-brand/15 text-brand shrink-0">
+            <SlidersHorizontal className="size-4" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-ink truncate">{label}</span>
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            </div>
+            <p className="text-[11px] text-ink-2 truncate">Live preview updates automatically</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={closeEdit}
+          title="Close edit panel"
+          className="grid size-7 place-items-center rounded-lg hover:bg-line/60 text-ink-2 hover:text-ink transition"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+
+      {/* Quick Section Switcher */}
+      <div className="border-b border-line bg-white px-4 py-2.5 flex items-center justify-between gap-2">
+        <label className="text-[11px] font-semibold text-ink-2 shrink-0">Section:</label>
+        <select
+          value={sel}
+          onChange={(e) => setSel(e.target.value)}
+          className="text-xs font-medium text-ink bg-soft/60 rounded-md border border-line px-2 py-1 w-full max-w-[220px] outline-none focus:border-brand"
+        >
+          {secs.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label} {!s.on ? '(Hidden)' : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Body */}
+      <div className="max-h-[calc(100vh-320px)] overflow-y-auto p-4 space-y-4">
+        {editor}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-line bg-soft/50 p-3">
+        <Btn size="sm" variant="secondary" onClick={closeEdit}>
+          Close
+        </Btn>
+        <div className="flex items-center gap-2">
+          <Btn size="sm" variant="secondary" icon={<Save className="size-3.5" />} onClick={() => saveHomepage(false)}>
+            Save draft
+          </Btn>
+          <Btn size="sm" icon={<Rocket className="size-3.5" />} onClick={() => setPub(true)}>
+            Publish
+          </Btn>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <AdminPage title="Homepage editor" desc="Arrange, edit and publish the sections of your storefront homepage." actions={Actions} wide>
       <div className="mb-4">
@@ -442,17 +642,37 @@ export function HomepageEditor(_: any) {
           <span>Live Synchronized CMS (Directly wired to Storefront Homepage)</span>
         </div>
       </div>
-      <div className="mb-4 lg:hidden"><Tabs value={tab} onChange={setTab} tabs={[{ value: 'sections', label: 'Sections' }, { value: 'preview', label: 'Preview' }, { value: 'edit', label: 'Edit' }]} /></div>
+      <div className="mb-4 lg:hidden">
+        <Tabs
+          value={tab}
+          onChange={(t) => {
+            setTab(t)
+            if (t === 'edit') setEditOpen(true)
+            if (t === 'sections' || t === 'preview') setEditOpen(false)
+          }}
+          tabs={[
+            { value: 'sections', label: 'Sections' },
+            { value: 'preview', label: 'Preview' },
+            { value: 'edit', label: editOpen ? `Editing: ${label}` : 'Edit' },
+          ]}
+        />
+      </div>
       <div className={cx(
         'grid items-start gap-5 transition-all duration-300',
         focusCanvas
           ? 'grid-cols-1'
-          : 'lg:grid-cols-[280px_minmax(0,1fr)_350px]'
+          : editOpen
+          ? 'lg:grid-cols-[250px_minmax(0,1fr)_380px]'
+          : 'lg:grid-cols-[280px_minmax(0,1fr)]'
       )}>
-        {!focusCanvas && <div className={show('sections')}>{list}</div>}
+        {!focusCanvas && (
+          <div className={cx(tab === 'sections' ? 'block' : 'hidden', 'lg:block')}>
+            {list}
+          </div>
+        )}
         <div className={cx(
-          show('preview'),
-          'lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto lg:rounded-xl lg:bg-soft/70 lg:p-4 border border-line/60'
+          tab === 'preview' ? 'block' : 'hidden',
+          'lg:block lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto lg:rounded-xl lg:bg-soft/70 lg:p-4 border border-line/60'
         )}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
             <div className="flex items-center gap-2">
@@ -474,6 +694,14 @@ export function HomepageEditor(_: any) {
               />
               <Btn
                 size="sm"
+                variant={editOpen ? 'dark' : 'primary'}
+                icon={<SlidersHorizontal className="size-3.5" />}
+                onClick={() => (editOpen ? closeEdit() : openEdit(sel))}
+              >
+                {editOpen ? 'Hide Edit Panel' : `Edit: ${label}`}
+              </Btn>
+              <Btn
+                size="sm"
                 variant={focusCanvas ? 'dark' : 'secondary'}
                 icon={focusCanvas ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
                 onClick={() => setFocusCanvas(!focusCanvas)}
@@ -489,24 +717,55 @@ export function HomepageEditor(_: any) {
             secs={secs}
             c={c}
             sel={sel}
+            editOpen={editOpen}
             onSel={(id) => {
-              setSel(id)
-              if (focusCanvas) setFocusCanvas(false)
-              if (window.innerWidth < 1024) setTab('edit')
+              openEdit(id)
             }}
             onMoveSec={moveSec}
             onToggleSec={toggleSec}
             mode={mode}
           />
         </div>
-        {!focusCanvas && (
-          <div className={show('edit')}>
-            <Card title={label} desc="Edit this section">
-              <div className="space-y-4">{editor}</div>
-            </Card>
+        {!focusCanvas && editOpen && (
+          <div className="hidden lg:block sticky top-4">
+            {editPanelCard}
           </div>
         )}
       </div>
+
+      {/* Slide-over Drawer for Mobile & Tablet */}
+      <Drawer
+        open={editOpen && tab === 'edit'}
+        onClose={closeEdit}
+        title={`Edit ${label}`}
+        width="w-[94vw] sm:w-[480px]"
+      >
+        <div className="p-4 space-y-4">
+          <div className="flex items-center justify-between gap-2 border-b border-line pb-3">
+            <span className="text-xs font-semibold text-ink-2">Switch section:</span>
+            <select
+              value={sel}
+              onChange={(e) => setSel(e.target.value)}
+              className="text-xs font-semibold text-ink bg-soft/60 rounded-md border border-line px-2 py-1 outline-none"
+            >
+              {secs.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label} {!s.on ? '(Hidden)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-4">{editor}</div>
+          <div className="flex items-center justify-between border-t border-line pt-4">
+            <Btn size="sm" variant="secondary" onClick={closeEdit}>Done</Btn>
+            <div className="flex items-center gap-2">
+              <Btn size="sm" variant="secondary" icon={<Save className="size-3.5" />} onClick={() => saveHomepage(false)}>Save draft</Btn>
+              <Btn size="sm" icon={<Rocket className="size-3.5" />} onClick={() => setPub(true)}>Publish</Btn>
+            </div>
+          </div>
+        </div>
+      </Drawer>
+
       <Drawer open={prev} onClose={() => setPrev(false)} title="Full Homepage Preview" width="max-w-7xl">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Segmented
@@ -518,14 +777,15 @@ export function HomepageEditor(_: any) {
               { value: 'mobile', label: 'Mobile (400px)' },
             ]}
           />
-          <p className="text-xs text-ink-2">Live responsive storefront preview. Click any section to select it in the editor.</p>
+          <p className="text-xs text-ink-2">Live responsive storefront preview. Click any section to select and edit.</p>
         </div>
         <div className="rounded-xl bg-soft p-2 sm:p-6 overflow-x-auto">
           <Preview
             secs={secs}
             c={c}
             sel={sel}
-            onSel={(id) => { setSel(id); setPrev(false); setTab('edit') }}
+            editOpen={editOpen}
+            onSel={(id) => { openEdit(id); setPrev(false) }}
             onMoveSec={moveSec}
             onToggleSec={toggleSec}
             mode={mode}
@@ -537,7 +797,6 @@ export function HomepageEditor(_: any) {
       </Modal>
     </AdminPage>
   )
-
 }
 
 /* ======================= Content pages ======================= */

@@ -97,6 +97,7 @@ export interface HomePreviewProps {
   secs?: Array<{ id: string; on: boolean; label?: string }>
   c?: any
   selectedSection?: string
+  editOpen?: boolean
   onSelectSection?: (id: string) => void
   onMoveSection?: (id: string, delta: number) => void
   onToggleSection?: (id: string, on: boolean) => void
@@ -597,14 +598,19 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
         <div
           className={cx(
             'absolute top-3 left-3 z-30 flex items-center gap-2 rounded-lg shadow-xl backdrop-blur transition-all duration-200 pointer-events-auto',
-            isSelected
+            isSelected && previewProps.editOpen
               ? 'opacity-100 bg-brand text-white p-1 pl-3 ring-2 ring-white/30 scale-100'
+              : isSelected
+              ? 'opacity-100 bg-navy/95 text-white p-1 pl-3 ring-2 ring-brand/50 scale-100'
               : 'opacity-0 group-hover/sec:opacity-100 bg-navy/90 text-white p-1 pl-2.5 scale-95 group-hover/sec:scale-100'
           )}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-1.5 text-xs font-bold">
-            <span className="size-2 rounded-full bg-white animate-pulse" />
+            <span className={cx(
+              'size-2 rounded-full',
+              isSelected && previewProps.editOpen ? 'bg-emerald-400 animate-ping' : 'bg-white animate-pulse'
+            )} />
             <span className="rounded bg-black/25 px-1.5 py-0.5 text-[10px] tracking-wide">#{index + 1}</span>
             <span className="truncate max-w-[140px] sm:max-w-none">{label}</span>
           </div>
@@ -631,9 +637,14 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
             <button
               type="button"
               onClick={() => previewProps.onSelectSection?.(id)}
-              className="ml-0.5 rounded bg-white/20 px-2 py-0.5 text-[11px] font-bold hover:bg-white/35 active:scale-95 transition"
+              className={cx(
+                'ml-0.5 rounded px-2.5 py-0.5 text-[11px] font-bold transition active:scale-95 flex items-center gap-1',
+                isSelected && previewProps.editOpen
+                  ? 'bg-white text-brand shadow-xs hover:bg-white/90 font-extrabold'
+                  : 'bg-white/20 hover:bg-white/35 text-white'
+              )}
             >
-              {isSelected ? 'Editing' : 'Edit'}
+              <span>{isSelected && previewProps.editOpen ? 'Editing' : 'Edit'}</span>
             </button>
           </div>
         </div>
