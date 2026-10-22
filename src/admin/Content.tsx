@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Film, GripVertical, Image as ImgIcon, Indent, Italic, LayoutGrid, Link2, List, ListOrdered, Lock, Maximize2, Minimize2, Play, Plus, RefreshCw, Rocket, Save, Search, Trash2, Upload, X, Outdent, ShieldCheck, Check, ExternalLink, Video, SlidersHorizontal } from 'lucide-react'
 import { Badge, Btn, Check_, Drawer, EmptyState, Field, Input, Modal, Notice, Segmented, Select, StarRating, Switch, Tabs, Textarea, Uploader, useUpload, cx, InstagramIcon } from '../ui'
 import { go, useApp } from '../store'
@@ -81,6 +82,91 @@ const INIT = {
 }
 type Cfg = typeof INIT
 
+function DeviceIframe({
+  width,
+  height,
+  className,
+  children,
+}: {
+  width: number | string
+  height: number | string
+  className?: string
+  children: ReactNode
+}) {
+  const [mountNode, setMountNode] = useState<HTMLElement | null>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  const setupIframe = useCallback(() => {
+    const iframe = iframeRef.current
+    if (!iframe) return
+    const doc = iframe.contentDocument || iframe.contentWindow?.document
+    if (!doc) return
+
+    const head = doc.head
+    head.innerHTML = `
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+      <base href="${window.location.origin}/" />
+    `
+
+    // Clone all stylesheets, font links, and inline style tags from parent document
+    document.querySelectorAll('link[rel="stylesheet"], link[rel="preconnect"], style').forEach((node) => {
+      head.appendChild(node.cloneNode(true))
+    })
+
+    // Sync html and body styling
+    if (doc.documentElement && document.documentElement) {
+      doc.documentElement.className = document.documentElement.className
+      doc.documentElement.setAttribute('lang', 'en')
+    }
+
+    doc.body.style.margin = '0'
+    doc.body.style.padding = '0'
+    doc.body.style.backgroundColor = '#ffffff'
+    doc.body.style.color = '#111827'
+    doc.body.style.fontFamily = 'Inter, Roboto, sans-serif'
+    doc.body.style.overflowX = 'hidden'
+
+    let root = doc.getElementById('preview-root')
+    if (!root) {
+      root = doc.createElement('div')
+      root.id = 'preview-root'
+      doc.body.appendChild(root)
+    }
+
+    setMountNode(root)
+  }, [])
+
+  useEffect(() => {
+    const iframe = iframeRef.current
+    if (!iframe) return
+
+    if (iframe.contentDocument?.readyState === 'complete') {
+      setupIframe()
+    } else {
+      iframe.addEventListener('load', setupIframe)
+      return () => iframe.removeEventListener('load', setupIframe)
+    }
+  }, [setupIframe])
+
+  return (
+    <iframe
+      ref={iframeRef}
+      className={className}
+      style={{
+        width,
+        height,
+        border: 'none',
+        display: 'block',
+        backgroundColor: '#ffffff',
+      }}
+      title="Live Device Preview"
+    >
+      {mountNode ? createPortal(children, mountNode) : null}
+    </iframe>
+  )
+}
+
 function Preview({
   secs,
   c,
@@ -100,28 +186,34 @@ function Preview({
   onToggleSec?: (id: string, on: boolean) => void
   mode?: string
 }) {
+  const homeElement = (
+    <Home
+      previewProps={{
+        secs,
+        c,
+        selectedSection: sel,
+        editOpen,
+        onSelectSection: onSel,
+        onMoveSection: onMoveSec,
+        onToggleSection: onToggleSec,
+        mode,
+      }}
+    />
+  )
+
   if (mode === 'mobile') {
     return (
-      <div className="mx-auto my-3 max-w-[400px] transition-all duration-300">
-        <div className="relative mx-auto rounded-[46px] border-[10px] border-neutral-900 bg-neutral-900 p-2 shadow-2xl ring-1 ring-black/25">
+      <div className="mx-auto my-3 flex justify-center transition-all duration-300">
+        <div className="relative rounded-[46px] border-[10px] border-neutral-900 bg-neutral-900 p-2 shadow-2xl ring-1 ring-black/25 w-[414px] max-w-full">
           {/* Phone Speaker & Camera Notch */}
           <div className="absolute left-1/2 top-3.5 z-40 h-4.5 w-28 -translate-x-1/2 rounded-full bg-neutral-950 flex items-center justify-center gap-2">
             <span className="size-2 rounded-full bg-neutral-800" />
             <span className="h-1 w-7 rounded-full bg-neutral-800" />
           </div>
-          <div className="max-h-[760px] overflow-y-auto rounded-[36px] bg-white pt-6">
-            <Home
-              previewProps={{
-                secs,
-                c,
-                selectedSection: sel,
-                editOpen,
-                onSelectSection: onSel,
-                onMoveSection: onMoveSec,
-                onToggleSection: onToggleSec,
-                mode,
-              }}
-            />
+          <div className="overflow-hidden rounded-[36px] bg-white pt-5">
+            <DeviceIframe width={390} height={760}>
+              {homeElement}
+            </DeviceIframe>
           </div>
           {/* Phone Bottom Home Bar */}
           <div className="mx-auto mt-2 h-1 w-28 rounded-full bg-neutral-700" />
@@ -132,23 +224,14 @@ function Preview({
 
   if (mode === 'tablet') {
     return (
-      <div className="mx-auto my-3 max-w-[768px] transition-all duration-300">
-        <div className="relative mx-auto rounded-[32px] border-[10px] border-neutral-800 bg-neutral-800 p-2 shadow-2xl ring-1 ring-black/25">
+      <div className="mx-auto my-3 flex justify-center transition-all duration-300 overflow-x-auto pb-4">
+        <div className="relative rounded-[32px] border-[10px] border-neutral-800 bg-neutral-800 p-2 shadow-2xl ring-1 ring-black/25 shrink-0 w-[788px]">
           {/* Tablet Camera Dot */}
           <div className="absolute left-1/2 top-2 z-40 size-2.5 -translate-x-1/2 rounded-full bg-neutral-950" />
-          <div className="max-h-[760px] overflow-y-auto rounded-[24px] bg-white pt-3">
-            <Home
-              previewProps={{
-                secs,
-                c,
-                selectedSection: sel,
-                editOpen,
-                onSelectSection: onSel,
-                onMoveSection: onMoveSec,
-                onToggleSection: onToggleSec,
-                mode,
-              }}
-            />
+          <div className="overflow-hidden rounded-[24px] bg-white pt-3">
+            <DeviceIframe width={768} height={820}>
+              {homeElement}
+            </DeviceIframe>
           </div>
         </div>
       </div>
@@ -174,18 +257,7 @@ function Preview({
         </div>
       </div>
       <div className="max-h-[calc(100vh-230px)] overflow-y-auto bg-white">
-        <Home
-          previewProps={{
-            secs,
-            c,
-            selectedSection: sel,
-            editOpen,
-            onSelectSection: onSel,
-            onMoveSection: onMoveSec,
-            onToggleSection: onToggleSec,
-            mode,
-          }}
-        />
+        {homeElement}
       </div>
     </div>
   )
