@@ -232,8 +232,8 @@ function HorizontalCategorySection({
   return (
     <section
       ref={sectionRef}
-      className="relative bg-gradient-to-b from-white via-soft/30 to-white"
-      style={{ minHeight: isPreview ? 'auto' : `${Math.max(200, (totalCards + 1) * 45)}vh` }}
+      className="relative bg-white"
+      style={{ minHeight: isPreview ? 'auto' : `${Math.max(180, (totalCards + 1) * 35)}vh` }}
     >
       <div
         ref={stickyRef}
@@ -241,46 +241,35 @@ function HorizontalCategorySection({
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         className={cx(
-          'sticky top-0 h-screen max-h-screen overflow-hidden flex flex-col justify-between py-6 sm:py-8 lg:py-10 z-10',
+          'sticky top-0 h-screen max-h-screen overflow-hidden flex flex-col justify-between py-8 sm:py-12 z-10',
           isPreview && 'static h-auto max-h-none py-8'
         )}
       >
-        {/* Section Header with Controls */}
+        {/* Minimal Header */}
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6 shrink-0">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-line/60">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-bold tracking-wider uppercase mb-2">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
-                  <span className="relative inline-flex size-2 rounded-full bg-brand" />
-                </span>
-                Commercial Display Hardware
-              </div>
-              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-navy leading-[1.15]">
-                Everything your space needs to be seen
-              </h2>
-              <p className="mt-1.5 text-xs sm:text-sm text-ink-2 leading-relaxed">
-                Scroll vertically to glide through our architectural series, or use navigation controls to explore.
+          <div className="flex items-end justify-between gap-6 pb-4 border-b border-line/50">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-brand mb-1">
+                Categories
               </p>
+              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-navy">
+                Shop by category
+              </h2>
             </div>
 
-            {/* Controls: Slide Counter, Prev/Next Arrows, View All */}
-            <div className="flex items-center gap-3 shrink-0">
-              {/* Slide counter */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-line shadow-2xs text-xs font-mono">
-                <span className="font-bold text-navy">0{activeIndex + 1}</span>
-                <span className="text-ink-2/60">/</span>
-                <span className="text-ink-2 font-medium">0{totalCards}</span>
-              </div>
+            {/* Clean Controls: Counter + Prev/Next + All Products */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              <span className="text-xs font-mono text-ink-2">
+                0{activeIndex + 1} <span className="opacity-40">/</span> 0{totalCards}
+              </span>
 
-              {/* Prev / Next buttons */}
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={handlePrev}
                   disabled={activeIndex === 0}
                   aria-label="Previous category"
-                  className="grid size-9 place-items-center rounded-full bg-white border border-line shadow-2xs hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer text-navy"
+                  className="grid size-9 place-items-center rounded-full border border-line bg-white hover:bg-slate-50 disabled:opacity-20 disabled:pointer-events-none transition cursor-pointer text-navy"
                 >
                   <ChevronLeft className="size-4" />
                 </button>
@@ -289,118 +278,58 @@ function HorizontalCategorySection({
                   onClick={handleNext}
                   disabled={activeIndex === totalCards - 1}
                   aria-label="Next category"
-                  className="grid size-9 place-items-center rounded-full bg-white border border-line shadow-2xs hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer text-navy"
+                  className="grid size-9 place-items-center rounded-full border border-line bg-white hover:bg-slate-50 disabled:opacity-20 disabled:pointer-events-none transition cursor-pointer text-navy"
                 >
                   <ChevronRight className="size-4" />
                 </button>
               </div>
 
-              <Btn
-                variant="secondary"
+              <Link
                 to="/shop"
-                iconRight
-                icon={<ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />}
-                className="hidden sm:inline-flex shadow-sm font-semibold text-xs sm:text-sm h-9 px-3.5"
+                className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline pl-2"
               >
-                All products ({products.length || 24})
-              </Btn>
+                All products <ArrowRight className="size-3.5" />
+              </Link>
             </div>
-          </div>
-
-          {/* Category Filter Pills / Quick Nav */}
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {displayCats.map((cat, idx) => {
-                const isSelected = activeIndex === idx
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => scrollToCategory(idx)}
-                    className={cx(
-                      'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer',
-                      isSelected
-                        ? 'bg-navy text-white shadow-sm ring-1 ring-navy'
-                        : 'bg-white hover:bg-slate-100 text-ink-2 hover:text-ink border border-line shadow-2xs'
-                    )}
-                  >
-                    <span>{cat.name}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Scroll Guide Indicator */}
-            <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-ink-2 shrink-0">
-              <span className="size-1.5 rounded-full bg-brand animate-pulse" />
-              <span>Scroll down to glide horizontally</span>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mt-3 h-1 w-full bg-slate-200/80 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-brand via-amber-500 to-brand transition-all duration-100 ease-out rounded-full"
-              style={{ width: `${Math.max(progress * 100, 4)}%` }}
-            />
           </div>
         </div>
 
-        {/* Horizontal Sliding Track */}
+        {/* Minimal Cards Track */}
         <div className="w-full overflow-hidden flex-1 flex items-center">
           <div
             ref={trackRef}
             className={cx(
-              'flex items-center gap-6 sm:gap-8 px-4 sm:px-8 lg:px-12 transition-transform duration-100 ease-out will-change-transform',
+              'flex items-center gap-5 sm:gap-7 px-4 sm:px-8 lg:px-12 transition-transform duration-100 ease-out will-change-transform',
               isPreview && 'overflow-x-auto max-w-full pb-4 scrollbar-none'
             )}
           >
-            {displayCats.map((cat, i) => {
-              const meta = CATEGORY_META[cat.id] || {
-                badge: '✦ Commercial Series',
-                tagline: cat.blurb || 'Engineered Display Solutions',
-                specs: ['Commercial Specifications', 'Durable Construction', 'Direct Support'],
-                startingPrice: undefined,
-                badgeBg: 'bg-white/15 text-white border-white/20',
-                gradient: 'from-brand/30 via-navy/20 to-transparent',
-              }
-
+            {displayCats.map((cat) => {
               const catProducts = products.filter(
                 (p) =>
                   p.cat === cat.id ||
                   p.category_slug === cat.id ||
                   p.category_id === cat.id ||
-                  p.cat?.toLowerCase() === cat.name?.toLowerCase() ||
-                  (p.cat && cat.id && p.cat.replace(/-/g, '') === cat.id.replace(/-/g, ''))
+                  p.cat?.toLowerCase() === cat.name?.toLowerCase()
               )
-              const productCount = catProducts.length
               const validPrices = catProducts
                 .map((p) => p.price)
                 .filter((pr): pr is number => typeof pr === 'number' && pr > 0)
-              const dynamicMinPrice = validPrices.length > 0 ? Math.min(...validPrices) : null
-              const priceDisplay = meta.startingPrice || (dynamicMinPrice ? `From ₹${dynamicMinPrice.toLocaleString('en-IN')}` : 'Custom Sizing')
-
-              const isActive = activeIndex === i
+              const minPrice = validPrices.length > 0 ? Math.min(...validPrices) : null
+              const meta = CATEGORY_META[cat.id]
+              const priceTag = meta?.startingPrice || (minPrice ? `From ₹${minPrice.toLocaleString('en-IN')}` : '')
 
               return (
                 <Link
                   key={cat.id}
                   to={`/category/${cat.id}`}
-                  className={cx(
-                    'group relative flex flex-col justify-between overflow-hidden rounded-3xl bg-slate-900 border border-slate-800/80 shadow-2xl transition-all duration-500 shrink-0 select-none',
-                    'w-[84vw] max-w-[420px] sm:w-[480px] md:w-[540px] lg:w-[620px]',
-                    'h-[460px] sm:h-[490px] lg:h-[530px]',
-                    isActive
-                      ? 'ring-2 ring-brand/60 shadow-brand/20 scale-100'
-                      : 'ring-1 ring-white/10 opacity-90 scale-[0.98] hover:opacity-100 hover:scale-100'
-                  )}
+                  className="group relative flex flex-col justify-end overflow-hidden rounded-2xl sm:rounded-3xl bg-neutral-900 shadow-lg transition-transform duration-500 hover:-translate-y-1 shrink-0 select-none w-[78vw] max-w-[340px] sm:w-[420px] md:w-[480px] lg:w-[520px] h-[440px] sm:h-[480px] lg:h-[520px]"
                 >
-                  {/* Background Image with smooth zoom & brightness balance */}
+                  {/* Clean Background Image */}
                   <img
                     src={resolveAssetUrl(cat.img)}
                     alt={cat.name}
                     loading="lazy"
-                    className="absolute inset-0 size-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 group-hover:brightness-95"
+                    className="absolute inset-0 size-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
                     onError={(e) => {
                       const t = e.currentTarget
                       if (!t.dataset.fallback) {
@@ -410,88 +339,25 @@ function HorizontalCategorySection({
                     }}
                   />
 
-                  {/* Top contrast gradient */}
-                  <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/70 via-black/30 to-transparent pointer-events-none" />
+                  {/* Soft Vignette / Gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
 
-                  {/* Deep lower gradient for crystal-clear readability */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 via-45% to-slate-950/15 pointer-events-none" />
-
-                  {/* Ambient category color glow on hover */}
-                  <div
-                    className={cx(
-                      'absolute inset-0 bg-gradient-to-tr opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none',
-                      meta.gradient
-                    )}
-                  />
-
-                  {/* Inset ring with subtle glow on hover */}
-                  <div className="absolute inset-0 rounded-3xl ring-1 ring-inset ring-white/10 group-hover:ring-brand/50 transition-colors duration-300 pointer-events-none" />
-
-                  {/* Top Deck: Floating Badges & Slide Number */}
-                  <div className="relative z-10 flex items-center justify-between gap-2 p-4 sm:p-6">
-                    <div className="flex items-center gap-2">
-                      <span className="grid size-8 place-items-center rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white font-mono text-xs font-bold shadow-xs">
-                        0{i + 1}
-                      </span>
-                      <span
-                        className={cx(
-                          'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold tracking-wide uppercase shadow-sm backdrop-blur-md border transition-all duration-300',
-                          meta.badgeBg
-                        )}
-                      >
-                        {meta.badge}
-                      </span>
-                    </div>
-
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white text-xs font-semibold shadow-xs">
-                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>{priceDisplay}</span>
-                    </span>
-                  </div>
-
-                  {/* Bottom Deck: Typography, Specs & Action Callout */}
-                  <div className="relative z-10 flex flex-col justify-end p-5 sm:p-7 md:p-8 text-white">
-                    {/* Category Title */}
-                    <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight group-hover:text-amber-200 transition-colors duration-300 drop-shadow-sm mb-2">
-                      {cat.name}
-                    </h3>
-
-                    {/* Blurb / Tagline */}
-                    <p className="text-white/85 font-normal leading-relaxed text-xs sm:text-sm lg:text-base line-clamp-2 max-w-xl mb-3.5">
-                      {cat.blurb || meta.tagline}
-                    </p>
-
-                    {/* Feature Spec Chips */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {meta.specs.slice(0, 3).map((spec, sIdx) => (
-                        <span
-                          key={sIdx}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/15 text-xs text-white/95 font-medium"
-                        >
-                          <span className="size-1 rounded-full bg-brand" />
-                          {spec}
-                        </span>
-                      ))}
-                      {productCount > 0 && (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-brand/25 backdrop-blur-md border border-brand/35 text-xs text-amber-200 font-semibold">
-                          {productCount} {productCount === 1 ? 'Model Available' : 'Models Available'}
-                        </span>
+                  {/* Minimal Content Overlay */}
+                  <div className="relative z-10 p-6 sm:p-8 text-white flex items-end justify-between gap-4">
+                    <div>
+                      {priceTag && (
+                        <p className="text-xs font-medium text-white/70 mb-1 tracking-wide">
+                          {priceTag}
+                        </p>
                       )}
+                      <h3 className="text-2xl sm:text-3xl font-bold tracking-tight leading-snug group-hover:text-brand transition-colors">
+                        {cat.name}
+                      </h3>
                     </div>
 
-                    {/* Action Row */}
-                    <div className="flex items-center justify-between gap-3 border-t border-white/15 pt-3.5 mt-1">
-                      <div className="flex items-center gap-2 text-xs text-white/70">
-                        <span className="font-medium text-white/90">
-                          {productCount > 0 ? `${productCount} products in catalogue` : 'Commercial solution'}
-                        </span>
-                      </div>
-
-                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-xs sm:text-sm font-bold shadow-md transition-all duration-300 group-hover:bg-brand group-hover:border-brand group-hover:text-white group-hover:shadow-brand/40">
-                        <span>Explore Series</span>
-                        <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                      </div>
-                    </div>
+                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white/15 backdrop-blur-md text-white transition-all group-hover:bg-brand group-hover:scale-110">
+                      <ArrowUpRight className="size-4" />
+                    </span>
                   </div>
                 </Link>
               )
@@ -499,63 +365,13 @@ function HorizontalCategorySection({
           </div>
         </div>
 
-        {/* Bottom Status bar inside sticky view */}
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2 flex items-center justify-between text-xs text-ink-2 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-navy">Category Spotlight:</span>
-            <span className="text-ink font-medium">{displayCats[activeIndex]?.name}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline">Use mouse wheel, trackpad swipe or scroll down</span>
-            <div className="flex items-center gap-1 font-mono text-[11px]">
-              <span className="text-brand font-bold">{Math.round(progress * 100)}%</span>
-              <span>explored</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Non-sticky B2B Guarantee and Assurance Ribbon at the end of the section */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 border-t border-line/60">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-          <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
-              <Ruler className="size-4" />
-            </span>
-            <div>
-              <p className="text-xs font-bold text-navy">Custom Fabrication</p>
-              <p className="text-[11px] text-ink-2 mt-0.5">Millimeter custom dimensions & artwork</p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600">
-              <Truck className="size-4" />
-            </span>
-            <div>
-              <p className="text-xs font-bold text-navy">PAN-India Dispatch</p>
-              <p className="text-[11px] text-ink-2 mt-0.5">Wooden crated secure freight transit</p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-blue-500/10 text-blue-600">
-              <Box className="size-4" />
-            </span>
-            <div>
-              <p className="text-xs font-bold text-navy">Complete Assemblies</p>
-              <p className="text-[11px] text-ink-2 mt-0.5">Adapters, mounts & HP prints included</p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-purple-500/10 text-purple-600">
-              <ShieldCheck className="size-4" />
-            </span>
-            <div>
-              <p className="text-xs font-bold text-navy">Commercial Warranty</p>
-              <p className="text-[11px] text-ink-2 mt-0.5">1-Year hardware warranty & quote desk</p>
-            </div>
+        {/* Minimal Progress Line */}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 sm:mt-6 shrink-0">
+          <div className="h-0.5 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-brand transition-all duration-100 ease-out rounded-full"
+              style={{ width: `${Math.max(progress * 100, 3)}%` }}
+            />
           </div>
         </div>
       </div>
