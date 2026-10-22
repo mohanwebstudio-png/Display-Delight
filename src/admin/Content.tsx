@@ -59,13 +59,14 @@ function ImgField({ value, onChange, label = 'Image' }: { value: string; onChang
 const Pub = ({ s }: { s: string }) => <StatusBadge s={s} />
 
 /* ======================= Homepage editor ======================= */
-const SECS = [['announce', 'Announcement bar'], ['header', 'Header'], ['hero', 'Hero'], ['cats', 'Category showcase'], ['featured', 'Featured products'], ['intro', 'Company intro'], ['industries', 'Industries'], ['logos', 'Client logos'], ['video', 'Video showcase'], ['benefits', 'Benefits'], ['gallery', 'Gallery highlights'], ['tf', 'Testimonials & FAQ'], ['contact', 'Contact CTA'], ['footer', 'Footer']] as const
+const SECS = [['announce', 'Announcement bar'], ['header', 'Header'], ['hero', 'Hero'], ['cats', 'Category showcase'], ['featured', 'Featured products for sale'], ['reels', 'Commercial display reels'], ['intro', 'Company intro'], ['industries', 'Industries'], ['logos', 'Client logos'], ['video', 'Video showcase'], ['benefits', 'Benefits'], ['gallery', 'Gallery highlights'], ['tf', 'Testimonials & FAQ'], ['contact', 'Contact CTA'], ['footer', 'Footer']] as const
 const INIT = {
   announce: { text: '', link: '/shop' },
   header: { search: true, cart: true, account: true },
   hero: { headline: 'Light Up. Stand Out. Sell More!', sub: 'Digital standees, LED light boxes and custom signage for your business.', img: '/p/hero.jpg', video: '', c1: 'Shop products', c1to: '/shop', c2: 'Request a quote', c2to: '/quote' },
   cats: CATS.map((c) => c.id) as string[],
-  featured: PRODUCTS.slice(0, 4).map((p) => p.id),
+  featured: PRODUCTS.slice(0, 6).map((p) => p.id),
+  reels: { title: 'Demonstration Reels', sub: 'Watch real unboxing, illuminated LED glow tests, and 4K digital standee software walkthroughs.' },
   intro: { title: 'Signage built around your brand', text: 'Describe your company, what you make and who you serve.', img: '/p/lightbox-round.jpg' },
   industries: INDUSTRIES.slice(0, 4).map((_, i) => i),
   video: { title: 'See it in action', url: '', poster: '/p/i-standee.jpg' },
@@ -403,6 +404,11 @@ export function HomepageEditor(_: any) {
           : PRODUCTS.map((p) => ({ v: p.id, l: p.name }))
         return picker('featured', prodOptions, 8, getProductLabel)
       }
+      case 'reels': return <>
+        <Field label="Section title"><Input value={c.reels?.title || 'Demonstration Reels'} onChange={(e) => set('reels', { title: e.target.value })} /></Field>
+        <Field label="Supporting subtitle"><Textarea value={c.reels?.sub || ''} onChange={(e) => set('reels', { sub: e.target.value })} /></Field>
+        {link('/admin/gallery', 'Upload and manage individual Instagram Reels and video demonstrations in Gallery & videos.')}
+      </>
       case 'intro': return <><Field label="Heading"><Input value={c.intro.title} onChange={(e) => set('intro', { title: e.target.value })} /></Field><Field label="Text"><Textarea value={c.intro.text} onChange={(e) => set('intro', { text: e.target.value })} className="min-h-32" /></Field><ImgField value={c.intro.img} onChange={(s) => set('intro', { img: s })} /></>
       case 'industries': return picker('industries', INDUSTRIES.map((x, i) => ({ v: i, l: x[0] })), 8)
       case 'logos': return link('/admin/logos', 'Logos are verified and managed in Client logos. Empty slots stay hidden on the live site.')

@@ -208,11 +208,15 @@ def get_homepage_editor_data(
             "cta": contact_sec.cta_label if contact_sec and contact_sec.cta_label else "Contact us",
             "to": contact_sec.cta_url if contact_sec and contact_sec.cta_url else "/contact",
         },
+        "reels": {
+            "title": sec_map.get("reels").title if sec_map.get("reels") and sec_map.get("reels").title else "Demonstration Reels",
+            "sub": sec_map.get("reels").subtitle if sec_map.get("reels") and sec_map.get("reels").subtitle else "Watch real unboxing, illuminated LED glow tests, and 4K digital standee software walkthroughs.",
+        },
     }
 
     # All known homepage section keys
     all_known_keys = [
-        "announce", "header", "hero", "cats", "featured", "intro",
+        "announce", "header", "hero", "cats", "featured", "reels", "intro",
         "industries", "logos", "video", "benefits", "gallery", "tf", "contact", "footer"
     ]
     sorted_db_secs = sorted(sections, key=lambda s: s.display_order if s.display_order is not None else 999)
@@ -300,6 +304,12 @@ def save_homepage_editor_data(
         feat = _get_or_create_sec("featured", order_map.get("featured", 5))
         feat.title = "Featured Products"
         feat.content = json.dumps(c["featured"])
+
+    # 5b. Reels
+    if "reels" in c:
+        reel_sec = _get_or_create_sec("reels", order_map.get("reels", 6))
+        reel_sec.title = c["reels"].get("title", "Demonstration Reels")
+        reel_sec.subtitle = c["reels"].get("sub", "Watch real unboxing, illuminated LED glow tests, and 4K digital standee software walkthroughs.")
 
     # 6. Intro
     if "intro" in c:

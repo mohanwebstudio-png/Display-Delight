@@ -1,7 +1,13 @@
 import { useEffect, useState, useMemo, useRef, type ReactNode } from 'react'
-import { ArrowRight, ArrowUp, ArrowDown, ArrowUpRight, Layers, Mail, MessageCircle, Play, Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X, ShieldCheck, Box, SlidersHorizontal, Check, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
-import { INDUSTRIES, FAQS as FALLBACK_FAQS, CATS, byId } from '../data'
-import { Link, useApp, resolveAssetUrl } from '../store'
+import {
+  ArrowRight, ArrowUp, ArrowDown, ArrowUpRight, Layers, Mail, MessageCircle, Play,
+  Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X,
+  ShieldCheck, Box, SlidersHorizontal, Check, RefreshCw, ChevronLeft, ChevronRight,
+  Volume2, VolumeX, Copy, Tag, ShoppingBag, Percent, Clock, Flame, Gift, CheckCheck,
+  ShoppingCart
+} from 'lucide-react'
+import { INDUSTRIES, FAQS as FALLBACK_FAQS, CATS, byId, catName } from '../data'
+import { Link, useApp, resolveAssetUrl, go } from '../store'
 import { Accordion, Btn, Container, ProductCard, SectionHead, Badge, InstagramIcon, cx } from '../ui'
 import { catalogueApi, normalizeProduct, type ApiHomepageData } from '../api'
 import StoreLoader from '../components/StoreLoader'
@@ -81,7 +87,8 @@ const DEFAULT_SECS: Array<{ id: string; label: string }> = [
   { id: 'header', label: 'Header & logo' },
   { id: 'hero', label: 'Hero banner' },
   { id: 'cats', label: 'Category grid' },
-  { id: 'featured', label: 'Featured products' },
+  { id: 'featured', label: 'Featured products for sale' },
+  { id: 'reels', label: 'Commercial display reels' },
   { id: 'intro', label: 'Introduction / story' },
   { id: 'industries', label: 'Industries' },
   { id: 'logos', label: 'Client logos' },
@@ -381,13 +388,56 @@ function HorizontalCategorySection({
 }
 
 export default function Home({ previewProps }: { previewProps?: HomePreviewProps } = {}) {
-  const { products, categories, isLoadingCatalogue } = useApp()
+  const { products, categories, isLoadingCatalogue, addToCart, setCoupon, toast } = useApp()
   const [homeData, setHomeData] = useState<ApiHomepageData | null>(null)
   const [faqs, setFaqs] = useState<[string, string][]>([])
   const [loading, setLoading] = useState(!previewProps)
   const [activeVideoModal, setActiveVideoModal] = useState<string | null>(null)
   const [activeInstagram, setActiveInstagram] = useState<{ embedUrl: string; cleanUrl: string; title: string } | null>(null)
   const [activeCatTab, setActiveCatTab] = useState<string>('all')
+
+  // Direct Product Selling Filter
+  const [activeProductTab, setActiveProductTab] = useState<string>('all')
+
+  // Commercial Reels Showcase State
+  const [activeReel, setActiveReel] = useState<any | null>(null)
+  const [reelMuted, setReelMuted] = useState(true)
+  const reelsScrollRef = useRef<HTMLDivElement>(null)
+
+  // Advertisement Offer Pop-up State & Urgency Timer
+  const [showOfferPopup, setShowOfferPopup] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
+  const [timeLeft, setTimeLeft] = useState({ minutes: 14, seconds: 59 })
+
+  // Auto-open Advertisement Offer Pop-up once per session after 1.6s
+  useEffect(() => {
+    if (previewProps) return
+    const hasSeen = sessionStorage.getItem('dd_offer_popup_seen_v1')
+    if (!hasSeen) {
+      const timer = setTimeout(() => {
+        setShowOfferPopup(true)
+      }, 1600)
+      return () => clearTimeout(timer)
+    }
+  }, [previewProps])
+
+  // Offer urgency countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 }
+        if (prev.minutes > 0) return { minutes: prev.minutes - 1, seconds: 59 }
+        return { minutes: 14, seconds: 59 }
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const scrollReels = (delta: number) => {
+    if (reelsScrollRef.current) {
+      reelsScrollRef.current.scrollBy({ left: delta, behavior: 'smooth' })
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -507,6 +557,136 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
   const galleryItems = homeData?.gallery && homeData.gallery.length > 0
     ? homeData.gallery
     : null
+
+  // Filtered products for direct commercial selling grid (immediate commerce, no fluff)
+  const filteredProductsForSale = useMemo(() => {
+    if (activeProductTab === 'all') {
+      return featured.length > 0 ? featured : products.slice(0, 8)
+    }
+    const tabMatch = products.filter((p) => {
+      const cat = (p.cat || '').toLowerCase()
+      const name = (p.name || '').toLowerCase()
+      if (activeProductTab === 'digital') {
+        return cat.includes('digital') || cat.includes('kiosk') || cat.includes('standee') || name.includes('kiosk') || name.includes('standee')
+      }
+      if (activeProductTab === 'lightbox') {
+        return cat.includes('led') || cat.includes('light') || cat.includes('box') || cat.includes('fabric') || name.includes('box') || name.includes('frame')
+      }
+      if (activeProductTab === 'acrylic') {
+        return cat.includes('card') || cat.includes('acrylic') || cat.includes('tabletop') || name.includes('acrylic') || name.includes('stand')
+      }
+      if (activeProductTab === 'signage') {
+        return cat.includes('lollipop') || cat.includes('roll') || cat.includes('sign') || cat.includes('outdoor') || name.includes('board')
+      }
+      return cat === activeProductTab || cat.includes(activeProductTab)
+    })
+    return tabMatch.length > 0 ? tabMatch : products.slice(0, 8)
+  }, [activeProductTab, featured, products])
+
+  // Vertical 9:16 Display Reels Showcase (curated video demos + live gallery items)
+  const allReels = useMemo(() => {
+    const curated = [
+      {
+        id: 'reel-1',
+        title: '55" 4K Commercial Touch Kiosk · Live Store Demo',
+        desc: 'Interactive 4K IPS capacitive touch kiosk running digital store showcase with 24/7 commercial hardware.',
+        thumbnail: resolveAssetUrl('/p/i-standee.jpg'),
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-software-developer-working-on-code-screen-close-up-1728-large.mp4',
+        duration: '0:34',
+        views: '28.4K',
+        likes: '1.4K',
+        author: '@displaydelight',
+        productId: products[0]?.id || '1',
+        productName: products[0]?.name || '55" 4K Touch Kiosk',
+        productPrice: products[0]?.price || 34900,
+        productImg: resolveAssetUrl(products[0]?.img || '/p/i-standee.jpg'),
+      },
+      {
+        id: 'reel-2',
+        title: 'Ultra-Slim Edge-Lit Acrylic Snap Frame Glow',
+        desc: 'Edge-lit 18mm optical cast acrylic frame with magnetic snap profile and 10-second graphic swap.',
+        thumbnail: resolveAssetUrl('/p/ultraslim.jpg'),
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-young-man-wearing-a-face-mask-using-his-cell-phone-39757-large.mp4',
+        duration: '0:22',
+        views: '19.8K',
+        likes: '940',
+        author: '@displaydelight',
+        productId: products[1]?.id || '2',
+        productName: products[1]?.name || 'Ultra-Slim Snap Frame',
+        productPrice: products[1]?.price || 950,
+        productImg: resolveAssetUrl(products[1]?.img || '/p/ultraslim.jpg'),
+      },
+      {
+        id: 'reel-3',
+        title: '360° Motorized Rotating Outdoor Lollipop Board',
+        desc: 'IP65 waterproof double-sided projection board for high-street footfall and 360-degree store visibility.',
+        thumbnail: resolveAssetUrl('/p/t-led.jpg'),
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-vertical-video-of-a-woman-filming-a-city-at-night-42861-large.mp4',
+        duration: '0:28',
+        views: '32.1K',
+        likes: '2.1K',
+        author: '@displaydelight',
+        productId: products[2]?.id || '3',
+        productName: products[2]?.name || 'Rotating Lollipop Board',
+        productPrice: products[2]?.price || 3200,
+        productImg: resolveAssetUrl(products[2]?.img || '/p/t-led.jpg'),
+      },
+      {
+        id: 'reel-4',
+        title: 'High-Lumen Edge-Lit SEG Fabric Tension Box',
+        desc: 'Seamless silicone edge tension fabric light box with edge-to-edge frameless glow and vibrant backlighting.',
+        thumbnail: resolveAssetUrl('/p/backlit.jpg'),
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-holding-a-smartphone-with-a-green-screen-vertical-41532-large.mp4',
+        duration: '0:31',
+        views: '15.6K',
+        likes: '810',
+        author: '@displaydelight',
+        productId: products[3]?.id || '4',
+        productName: products[3]?.name || 'SEG Fabric Light Box',
+        productPrice: products[3]?.price || 8500,
+        productImg: resolveAssetUrl(products[3]?.img || '/p/backlit.jpg'),
+      },
+      {
+        id: 'reel-5',
+        title: 'Commercial A-Stand Digital Poster Board',
+        desc: 'Plug-and-play Android 24/7 commercial poster standee with anti-glare screen and heavy-duty casters.',
+        thumbnail: resolveAssetUrl('/p/frames.jpg'),
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-vertical-shot-of-a-woman-reading-a-tablet-screen-41228-large.mp4',
+        duration: '0:25',
+        views: '24.9K',
+        likes: '1.2K',
+        author: '@displaydelight',
+        productId: products[4]?.id || '5',
+        productName: products[4]?.name || 'A-Stand Digital Poster',
+        productPrice: products[4]?.price || 23160,
+        productImg: resolveAssetUrl(products[4]?.img || '/p/frames.jpg'),
+      },
+    ]
+
+    if (galleryItems && galleryItems.length > 0) {
+      const dbReels = galleryItems
+        .filter((g) => g.media_type === 'instagram' || g.media_type === 'video')
+        .map((g, idx) => ({
+          id: `db-reel-${g.id || idx}`,
+          title: g.title || 'Client Installation Showcase',
+          desc: 'Verified DisplayDelight commercial display setup in live client space.',
+          thumbnail: resolveAssetUrl(g.thumbnail_url || g.media_url || '/p/i-standee.jpg'),
+          videoUrl: g.media_url,
+          embedUrl: g.embed_url,
+          isInstagram: g.media_type === 'instagram',
+          duration: '0:30',
+          views: `${(18 + (idx * 3.4)).toFixed(1)}K`,
+          likes: `${(900 + (idx * 140))}`,
+          author: '@displaydelight',
+          productId: g.prod || products[idx % products.length]?.id || '1',
+          productName: products[idx % products.length]?.name || 'Commercial Display',
+          productPrice: products[idx % products.length]?.price || 2499,
+          productImg: resolveAssetUrl(products[idx % products.length]?.img || '/p/i-standee.jpg'),
+        }))
+      return [...dbReels, ...curated]
+    }
+    return curated
+  }, [galleryItems, products])
 
   // Dynamic benefits
   const benefitIcons = [Wand2, Ruler, Truck, MessageCircle]
@@ -751,14 +931,247 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
         isPreview={Boolean(previewProps)}
       />
     ),
-    featured: () => (
-      <section className="bg-soft py-12 sm:py-20">
-        <Container>
-          <SectionHead eyebrow="Featured products" title="Live Database Catalogue" action={<Btn variant="secondary" to="/shop">View all products</Btn>} />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {featured.map((p) => <ProductCard key={p.id} p={p} />)}
+    featured: () => {
+      const productTabs = [
+        { id: 'all', label: 'All Displays for Sale' },
+        { id: 'digital', label: 'Digital Standees & Kiosks' },
+        { id: 'lightbox', label: 'LED Light Boxes' },
+        { id: 'acrylic', label: 'Tabletop & Acrylic' },
+        { id: 'signage', label: 'Outdoor & Signage' },
+      ]
+
+      return (
+        <section className="bg-soft/70 py-14 sm:py-20 border-y border-line/60">
+          <Container>
+            {/* Commercial Header - Direct Commerce, Zero Promotion Fluff */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700 border border-emerald-500/20 mb-2">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Commercial Displays For Sale · Ready to Order
+                </div>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-navy tracking-tight font-display">
+                  Commercial Display Systems
+                </h2>
+                <p className="mt-1 max-w-xl text-sm text-ink-2">
+                  High-converting digital signage, LED light boxes, and optical display fixtures engineered for retail, events, and corporate spaces.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Btn variant="secondary" to="/shop" iconRight icon={<ArrowRight className="size-4" />}>
+                  Explore All ({products.length})
+                </Btn>
+              </div>
+            </div>
+
+            {/* Direct Commercial Trust Highlights */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-4 mb-6 rounded-2xl bg-white border border-line p-3 shadow-xs">
+              <div className="flex items-center gap-2.5 px-3 py-1">
+                <Truck className="size-5 text-brand shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-ink">Pan-India Freight</p>
+                  <p className="text-[11px] text-ink-2 truncate">Dispatch in 24-48 hrs</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 px-3 py-1 border-l border-line/60">
+                <ShieldCheck className="size-5 text-emerald-600 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-ink">1-Year Warranty</p>
+                  <p className="text-[11px] text-ink-2 truncate">Commercial grade guarantee</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 px-3 py-1 border-l border-line/60">
+                <Tag className="size-5 text-amber-600 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-ink">GST 18% Invoice</p>
+                  <p className="text-[11px] text-ink-2 truncate">Full input tax credit</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 px-3 py-1 border-l border-line/60">
+                <Box className="size-5 text-blue-600 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-ink">Custom Branding</p>
+                  <p className="text-[11px] text-ink-2 truncate">Factory direct finishing</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Category Filter Chips */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 hide-scroll">
+              {productTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveProductTab(tab.id)}
+                  className={cx(
+                    'shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition-all duration-150 active:scale-95 cursor-pointer shadow-xs',
+                    activeProductTab === tab.id
+                      ? 'bg-navy text-white shadow-md ring-2 ring-brand/30'
+                      : 'bg-white text-ink hover:bg-neutral-100 hover:text-navy border border-line'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Product Sales Grid */}
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredProductsForSale.slice(0, 8).map((p) => (
+                <ProductCard key={p.id} p={p} />
+              ))}
+            </div>
+
+            {/* Bottom Navigation Link */}
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-line/70 pt-6">
+              <p className="text-xs text-ink-2">
+                Showing {Math.min(8, filteredProductsForSale.length)} of {products.length} commercial display units in stock.
+              </p>
+              <Btn to="/shop" size="md" iconRight icon={<ArrowRight className="size-4" />}>
+                Browse Complete Storefront
+              </Btn>
+            </div>
+          </Container>
+        </section>
+      )
+    },
+    reels: () => (
+      <section className="bg-navy py-14 sm:py-20 text-white relative overflow-hidden">
+        {/* Ambient glow */}
+        <div className="pointer-events-none absolute -left-40 top-1/2 size-96 -translate-y-1/2 rounded-full bg-brand/15 blur-[100px]" />
+        <div className="pointer-events-none absolute -right-40 top-1/2 size-96 -translate-y-1/2 rounded-full bg-purple-600/15 blur-[100px]" />
+
+        <Container className="relative">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500/20 to-rose-500/20 px-3.5 py-1 text-xs font-bold text-rose-300 border border-rose-500/30 mb-2">
+                <InstagramIcon className="size-3.5 text-rose-400" />
+                Featured Commercial Reels · 9:16 Video Showcase
+              </div>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight font-display">
+                See Our Displays In Action
+              </h2>
+              <p className="mt-1 text-sm text-white/70 max-w-lg">
+                Real customer unboxings, brightness demos, and showroom walk-throughs recorded directly from commercial installations.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => scrollReels(-320)}
+                aria-label="Previous reels"
+                className="grid size-10 place-items-center rounded-xl bg-white/10 hover:bg-white/25 active:scale-95 text-white transition border border-white/10"
+              >
+                <ChevronLeft className="size-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollReels(320)}
+                aria-label="Next reels"
+                className="grid size-10 place-items-center rounded-xl bg-white/10 hover:bg-white/25 active:scale-95 text-white transition border border-white/10"
+              >
+                <ChevronRight className="size-5" />
+              </button>
+            </div>
           </div>
-          <p className="mt-6 text-xs text-ink-2">Synchronized in real-time with the production database catalogue.</p>
+
+          {/* Reels Horizontal Carousel */}
+          <div
+            ref={reelsScrollRef}
+            className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 pt-1 hide-scroll snap-x snap-mandatory scroll-smooth"
+          >
+            {allReels.map((reel) => (
+              <div
+                key={reel.id}
+                onClick={() => setActiveReel(reel)}
+                className="group relative w-60 sm:w-68 md:w-72 shrink-0 snap-start overflow-hidden rounded-2xl bg-neutral-900 border border-white/15 cursor-pointer shadow-xl transition-all duration-300 hover:-translate-y-1.5 hover:border-brand/60 hover:shadow-brand/20"
+                style={{ aspectRatio: '9/16' }}
+              >
+                {/* Reel Poster Image */}
+                <img
+                  src={resolveAssetUrl(reel.thumbnail)}
+                  alt={reel.title}
+                  loading="lazy"
+                  className="size-full object-cover opacity-85 transition duration-700 group-hover:scale-105 group-hover:opacity-95"
+                  onError={(e) => {
+                    const t = e.currentTarget
+                    if (!t.dataset.fallback) {
+                      t.dataset.fallback = '1'
+                      t.src = resolveAssetUrl('/p/i-standee.jpg')
+                    }
+                  }}
+                />
+
+                {/* Dark Vignette Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-black/60 pointer-events-none" />
+
+                {/* Top Badge: Instagram Tag + Views */}
+                <div className="absolute top-3 inset-x-3 flex items-center justify-between z-10">
+                  <span className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 px-2.5 py-1 text-[11px] font-extrabold text-white shadow-md">
+                    <InstagramIcon className="size-3" /> Reel
+                  </span>
+                  <span className="rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white/90 backdrop-blur">
+                    👁 {reel.views}
+                  </span>
+                </div>
+
+                {/* Center Play Button with Hover Pulse */}
+                <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                  <span className="grid size-14 place-items-center rounded-full bg-white/20 backdrop-blur-md text-white border border-white/40 shadow-2xl transition duration-300 group-hover:scale-115 group-hover:bg-brand">
+                    <Play className="ml-1 size-6" fill="currentColor" />
+                  </span>
+                </div>
+
+                {/* Bottom Overlay: Title & Tagged Product Buy Pill */}
+                <div className="absolute inset-x-0 bottom-0 p-3.5 z-10 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-mono font-bold text-brand">
+                      {reel.duration}
+                    </span>
+                    <span className="text-[11px] text-white/70 truncate">{reel.author}</span>
+                  </div>
+
+                  <h3 className="text-sm font-bold leading-snug text-white line-clamp-2 drop-shadow-sm">
+                    {reel.title}
+                  </h3>
+
+                  {/* Pinned Tagged Product Chip */}
+                  {reel.productId && (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        go(`/product/${reel.productId}`)
+                      }}
+                      className="mt-1 flex items-center gap-2 rounded-xl bg-white/95 p-1.5 pr-2.5 text-navy shadow-lg backdrop-blur transition hover:bg-white active:scale-98"
+                    >
+                      <img
+                        src={resolveAssetUrl(reel.productImg)}
+                        alt=""
+                        className="size-8 rounded-lg object-cover bg-neutral-100 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-bold truncate leading-tight text-navy">{reel.productName}</p>
+                        <p className="text-[10px] font-black text-brand leading-none">₹{Number(reel.productPrice).toLocaleString('en-IN')}</p>
+                      </div>
+                      <span className="rounded-md bg-brand px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white shrink-0">
+                        Buy
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-4 text-xs text-white/60">
+            <span>Tap any reel to preview screen quality and live specifications in full vertical player.</span>
+            <Link to="/gallery" className="inline-flex items-center gap-1 font-bold text-brand hover:underline">
+              View All Video & Installation Demos <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
         </Container>
       </section>
     ),
@@ -1142,57 +1555,294 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
         </div>
       )}
 
-      {/* Instagram Reel / Post Modal Player */}
-      {activeInstagram && (
+      {/* Interactive Vertical Reel Player Modal */}
+      {activeReel && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-navy/90 p-4 backdrop-blur"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-2 sm:p-4 backdrop-blur-md"
           role="dialog"
           aria-modal="true"
-          aria-label="Instagram viewer"
-          onClick={() => setActiveInstagram(null)}
+          onClick={() => setActiveReel(null)}
         >
           <div
-            className="anim-pop relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="relative flex flex-col md:flex-row items-center gap-4 max-h-[96vh] w-full max-w-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-line bg-soft px-4 py-3">
-              <div className="flex items-center gap-2">
-                <span className="grid size-7 place-items-center rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white">
-                  <InstagramIcon className="size-4" />
-                </span>
-                <span className="truncate text-sm font-semibold text-navy">
-                  {activeInstagram.title}
-                </span>
+            {/* Phone Container */}
+            <div className="relative w-full max-w-[340px] sm:max-w-[380px] aspect-[9/16] overflow-hidden rounded-3xl bg-neutral-950 border border-white/20 shadow-2xl shrink-0">
+              {/* Video Element */}
+              <video
+                src={activeReel.videoUrl}
+                poster={activeReel.thumbnail}
+                autoPlay
+                loop
+                playsInline
+                muted={reelMuted}
+                className="size-full object-cover"
+              />
+
+              {/* Gradient overlays */}
+              <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/80 to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/95 via-black/60 to-transparent pointer-events-none" />
+
+              {/* Top Bar Controls */}
+              <div className="absolute top-4 inset-x-4 flex items-center justify-between z-20">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-7 place-items-center rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white shadow">
+                    <InstagramIcon className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold text-white leading-none">{activeReel.author}</p>
+                    <p className="text-[10px] text-white/60">DisplayDelight Showroom</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReelMuted(!reelMuted)}
+                    className="grid size-8 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80 backdrop-blur transition"
+                    title={reelMuted ? 'Unmute' : 'Mute'}
+                  >
+                    {reelMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveReel(null)}
+                    className="grid size-8 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80 backdrop-blur transition"
+                    title="Close"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={activeInstagram.cleanUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold text-brand hover:bg-brand-soft"
-                >
-                  Open <ExternalLink className="size-3" />
-                </a>
-                <button
-                  onClick={() => setActiveInstagram(null)}
-                  className="grid size-8 place-items-center rounded-full text-ink-2 hover:bg-line hover:text-ink"
-                  aria-label="Close"
-                >
-                  <X className="size-4" />
-                </button>
+
+              {/* Bottom Details & Direct Product Action */}
+              <div className="absolute bottom-4 inset-x-4 z-20 flex flex-col gap-2.5">
+                <p className="text-sm font-bold text-white leading-tight drop-shadow">
+                  {activeReel.title}
+                </p>
+                <p className="text-xs text-white/80 line-clamp-2">
+                  {activeReel.desc}
+                </p>
+
+                {/* Tagged Product Box inside phone */}
+                {activeReel.productId && (
+                  <div className="flex items-center gap-2.5 rounded-2xl bg-white/95 p-2 pr-3 text-navy shadow-xl backdrop-blur">
+                    <img
+                      src={resolveAssetUrl(activeReel.productImg)}
+                      alt=""
+                      className="size-11 rounded-xl object-cover bg-neutral-100 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold truncate text-navy">{activeReel.productName}</p>
+                      <p className="text-xs font-black text-brand">₹{Number(activeReel.productPrice).toLocaleString('en-IN')}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        addToCart({
+                          productId: activeReel.productId,
+                          qty: 1,
+                          options: { Size: 'Standard' },
+                        })
+                        toast(`Added ${activeReel.productName} to cart!`)
+                      }}
+                      className="rounded-xl bg-brand hover:bg-brand-dark px-3 py-1.5 text-xs font-bold text-white transition active:scale-95 shadow-xs flex items-center gap-1 shrink-0 cursor-pointer"
+                    >
+                      <ShoppingCart className="size-3.5" />
+                      Add to Cart
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto bg-neutral-900/5 p-3 grid place-items-center">
-              <iframe
-                src={activeInstagram.embedUrl}
-                title={activeInstagram.title}
-                className="h-[520px] w-full max-w-[360px] rounded-xl border-0 shadow-sm"
-                loading="lazy"
-                allowTransparency
-              />
+
+            {/* Side Action Panel on Desktop */}
+            <div className="hidden md:flex flex-col gap-4 text-white bg-neutral-900/90 border border-white/10 rounded-2xl p-5 w-72">
+              <div className="border-b border-white/10 pb-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-brand">Featured Display Unit</span>
+                <h4 className="text-base font-bold mt-1">{activeReel.productName}</h4>
+                <p className="text-lg font-black text-brand mt-0.5">₹{Number(activeReel.productPrice).toLocaleString('en-IN')}</p>
+              </div>
+
+              <div className="space-y-2 text-xs text-white/70">
+                <p className="flex items-center gap-2"><Check className="size-3.5 text-emerald-400" /> Commercial 24/7 Run Rated</p>
+                <p className="flex items-center gap-2"><Check className="size-3.5 text-emerald-400" /> 1-Year Comprehensive Warranty</p>
+                <p className="flex items-center gap-2"><Check className="size-3.5 text-emerald-400" /> GST 18% Input Tax Invoice</p>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-2">
+                <Btn
+                  size="md"
+                  onClick={() => {
+                    addToCart({
+                      productId: activeReel.productId,
+                      qty: 1,
+                      options: { Size: 'Standard' },
+                    })
+                    setActiveReel(null)
+                    go('/checkout')
+                  }}
+                  icon={<ShoppingBag className="size-4" />}
+                >
+                  Buy Now · ₹{Number(activeReel.productPrice).toLocaleString('en-IN')}
+                </Btn>
+                <Btn
+                  size="sm"
+                  variant="secondary"
+                  to={`/product/${activeReel.productId}`}
+                  onClick={() => setActiveReel(null)}
+                >
+                  View Full Specifications
+                </Btn>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Commercial Advertisement Offer Pop-up Modal */}
+      {showOfferPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 sm:p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Commercial Special Offer"
+          onClick={() => {
+            setShowOfferPopup(false)
+            sessionStorage.setItem('dd_offer_popup_seen_v1', '1')
+          }}
+        >
+          <div
+            className="anim-pop relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-amber-500/20"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Banner */}
+            <div className="relative bg-gradient-to-br from-amber-600 via-orange-600 to-rose-600 px-6 py-6 text-white text-center">
+              {/* Background Glow */}
+              <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/20 blur-xl" />
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setShowOfferPopup(false)
+                  sessionStorage.setItem('dd_offer_popup_seen_v1', '1')
+                }}
+                className="absolute top-4 right-4 grid size-8 place-items-center rounded-full bg-black/25 text-white hover:bg-black/40 transition cursor-pointer"
+                aria-label="Close offer pop-up"
+              >
+                <X className="size-4" />
+              </button>
+
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-xs backdrop-blur mb-2">
+                <Flame className="size-3.5 text-amber-300 animate-pulse" />
+                Special Advertisement Offer
+              </span>
+
+              <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight font-display">
+                FLAT 10% OFF
+              </h3>
+              <p className="text-sm font-semibold text-white/90 mt-0.5">
+                On Your Commercial Display Order
+              </p>
+
+              {/* Urgency Countdown Timer */}
+              <div className="mt-3 inline-flex items-center gap-2 rounded-xl bg-black/30 px-3 py-1 text-xs font-mono font-bold text-amber-200">
+                <Clock className="size-3.5 text-amber-300" />
+                <span>Expires in: {String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}</span>
+              </div>
+            </div>
+
+            {/* Offer Body */}
+            <div className="p-6 sm:p-7 space-y-5">
+              <p className="text-center text-xs sm:text-sm text-ink-2 leading-relaxed">
+                Upgrade your store, showroom or corporate space with premium digital standees, LED light boxes, and tabletop signage. Use this promo code at checkout:
+              </p>
+
+              {/* Coupon Box with Copy Button */}
+              <div className="flex items-center justify-between rounded-2xl border-2 border-dashed border-amber-500/50 bg-amber-50/70 p-3.5 sm:p-4">
+                <div className="flex items-center gap-3">
+                  <div className="grid size-10 place-items-center rounded-xl bg-amber-500 text-white shadow-sm">
+                    <Tag className="size-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Promo Code</span>
+                    <p className="font-mono text-xl sm:text-2xl font-black tracking-widest text-navy">WELCOME10</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText('WELCOME10')
+                    setCopiedCode(true)
+                    toast('Coupon code WELCOME10 copied to clipboard!')
+                    setTimeout(() => setCopiedCode(false), 2500)
+                  }}
+                  className={cx(
+                    'flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition active:scale-95 shadow-xs cursor-pointer',
+                    copiedCode
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white text-navy hover:bg-neutral-100 border border-line'
+                  )}
+                >
+                  {copiedCode ? <CheckCheck className="size-4" /> : <Copy className="size-4" />}
+                  <span>{copiedCode ? 'Copied!' : 'Copy Code'}</span>
+                </button>
+              </div>
+
+              {/* Direct Primary Action: Apply & Shop Now */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCoupon('WELCOME10')
+                    toast('🎉 Coupon WELCOME10 applied! 10% discount activated.', 'ok')
+                    setShowOfferPopup(false)
+                    sessionStorage.setItem('dd_offer_popup_seen_v1', '1')
+                    go('/shop')
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-dark py-3.5 px-4 text-sm font-bold text-white transition active:scale-98 shadow-md cursor-pointer"
+                >
+                  <Percent className="size-4" />
+                  Apply 10% Discount & Shop Displays Now
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOfferPopup(false)
+                    sessionStorage.setItem('dd_offer_popup_seen_v1', '1')
+                  }}
+                  className="w-full py-2 text-center text-xs font-semibold text-ink-2 hover:text-navy transition cursor-pointer"
+                >
+                  Continue browsing homepage
+                </button>
+              </div>
+
+              {/* Trust Badges */}
+              <div className="border-t border-line/70 pt-4 grid grid-cols-3 gap-2 text-center text-[11px] font-medium text-ink-2">
+                <div>✓ All Displays Eligible</div>
+                <div>✓ GST 18% Invoice</div>
+                <div>✓ Fast Pan-India Dispatch</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Re-Open Offer Trigger Pill */}
+      {!showOfferPopup && (
+        <button
+          type="button"
+          onClick={() => setShowOfferPopup(true)}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-2xl ring-4 ring-amber-400/30 transition hover:scale-105 active:scale-95 cursor-pointer animate-pulse"
+          title="Open Special Commercial Offer"
+        >
+          <Gift className="size-4 text-amber-200" />
+          <span>Special Offer · 10% OFF</span>
+          <span className="rounded-md bg-black/30 px-1.5 py-0.5 font-mono text-[11px]">WELCOME10</span>
+        </button>
       )}
     </>
   )
