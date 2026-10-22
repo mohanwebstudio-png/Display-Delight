@@ -726,6 +726,194 @@ function TedyScrollGallery({
   )
 }
 
+interface FeyGalleryItem {
+  id: string | number
+  title: string
+  venue: string
+  city: string
+  tag: string
+  specs: string[]
+  img: string
+  media_type?: string
+  media_url?: string
+  embed_url?: string
+}
+
+function FeyStackedGallery({
+  items,
+  title = 'Displays at work',
+  eyebrow = 'Live Installations',
+  isPreview,
+  onOpenVideo,
+  onOpenInstagram,
+}: {
+  items: FeyGalleryItem[]
+  title?: string
+  eyebrow?: string
+  isPreview?: boolean
+  onOpenVideo?: (url: string) => void
+  onOpenInstagram?: (data: { embedUrl: string; cleanUrl: string; title: string }) => void
+}) {
+  return (
+    <section className="relative py-16 sm:py-24 bg-[#0a0f1d] text-white overflow-hidden">
+      {/* Ambient background glows */}
+      <div className="pointer-events-none absolute -left-48 top-1/4 size-[550px] rounded-full bg-brand/10 blur-[150px]" />
+      <div className="pointer-events-none absolute -right-48 bottom-1/4 size-[550px] rounded-full bg-blue-600/10 blur-[150px]" />
+
+      <Container className="relative max-w-6xl mx-auto px-4 sm:px-6">
+        {/* Minimal Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10 sm:mb-14 border-b border-white/10 pb-6">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-brand/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#ff9b73] border border-brand/30 mb-2">
+              <span className="size-1.5 rounded-full bg-brand animate-pulse" />
+              {eyebrow}
+            </div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white font-display">
+              {title}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-white/50 font-mono hidden sm:inline">
+              Scroll down to stack installations ↓
+            </span>
+            <Link
+              to="/gallery"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/90 hover:text-brand transition rounded-full bg-white/10 px-4 py-2 border border-white/15 hover:bg-white/15"
+            >
+              <span>Explore full gallery</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* The Stacked Card Deck (Fey Animation) */}
+        <div className="relative space-y-8 sm:space-y-10 pb-12">
+          {items.map((item, index) => {
+            return (
+              <div
+                key={item.id}
+                style={{
+                  top: `calc(72px + ${index * 20}px)`,
+                  zIndex: index + 1,
+                }}
+                className="sticky rounded-2xl sm:rounded-3xl border border-white/15 bg-gradient-to-b from-[#131c2e] via-[#0d1424] to-[#0a0f1d] shadow-[0_16px_40px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300"
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-5 sm:p-7 lg:p-8 items-center">
+                  {/* Left Column: Minimal Details */}
+                  <div className="lg:col-span-5 flex flex-col justify-between space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-white/50 bg-white/10 px-2.5 py-0.5 rounded border border-white/10">
+                          0{index + 1}
+                        </span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#ff9b73]">
+                          {item.tag}
+                        </span>
+                      </div>
+
+                      <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white tracking-tight leading-snug">
+                        {item.title}
+                      </h3>
+
+                      <p className="text-xs sm:text-sm text-white/70 leading-relaxed">
+                        {item.venue}
+                      </p>
+                    </div>
+
+                    {/* Minimal Specs Pills */}
+                    {item.specs && item.specs.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {item.specs.map((spec, sIdx) => (
+                          <span
+                            key={sIdx}
+                            className="text-[11px] font-medium text-white/80 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10"
+                          >
+                            {spec}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Minimal Action Row */}
+                    <div className="pt-2 flex items-center gap-3">
+                      <Link
+                        to="/gallery"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-white transition group"
+                      >
+                        <span>View site deployment</span>
+                        <ArrowUpRight className="size-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      </Link>
+
+                      {item.media_type === 'instagram' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const scMatch = item.media_url?.match(/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)
+                            const shortcode = scMatch ? scMatch[1] : ''
+                            onOpenInstagram?.({
+                              embedUrl: item.embed_url || `https://www.instagram.com/p/${shortcode}/embed/`,
+                              cleanUrl: item.media_url?.startsWith('http') ? item.media_url : `https://www.instagram.com/p/${shortcode}/`,
+                              title: item.title,
+                            })
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/90 bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 px-3 py-1 rounded-full hover:opacity-90 transition shadow-sm cursor-pointer"
+                        >
+                          <InstagramIcon className="size-3" />
+                          <span>Reel</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column: High-Res Media Showcase */}
+                  <div className="lg:col-span-7 relative group/img overflow-hidden rounded-xl sm:rounded-2xl border border-white/10 bg-black/40 aspect-[16/10] sm:aspect-[16/9]">
+                    <img
+                      src={resolveAssetUrl(item.img)}
+                      alt={item.title}
+                      loading="lazy"
+                      className="size-full object-cover object-center transition-transform duration-700 group-hover/img:scale-105"
+                      onError={(e) => {
+                        const t = e.currentTarget
+                        if (!t.dataset.fallback) {
+                          t.dataset.fallback = '1'
+                          t.src = resolveAssetUrl('/p/hero.jpg')
+                        }
+                      }}
+                    />
+
+                    {/* Subtle Gradient Shadow */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+
+                    {/* Video Play Button Overlay */}
+                    {item.media_type === 'video' && item.media_url && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenVideo?.(item.media_url!)}
+                        className="absolute inset-0 grid place-items-center group/play z-10 cursor-pointer"
+                        aria-label="Play video"
+                      >
+                        <span className="grid size-12 sm:size-14 place-items-center rounded-full bg-white/90 text-brand shadow-2xl transition-all duration-300 group-hover/play:scale-110 group-hover/play:bg-white">
+                          <Play className="ml-1 size-5 sm:size-6" fill="currentColor" />
+                        </span>
+                      </button>
+                    )}
+
+                    {/* City Location Tag in Image Corner */}
+                    <div className="absolute bottom-3 right-3 z-10 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-md border border-white/10 text-[10px] font-mono text-white/80">
+                      📍 {item.city}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </Container>
+    </section>
+  )
+}
+
 export default function Home({ previewProps }: { previewProps?: HomePreviewProps } = {}) {
   const { products, categories, isLoadingCatalogue, addToCart, setCoupon, toast } = useApp()
   const [homeData, setHomeData] = useState<ApiHomepageData | null>(null)
@@ -1679,12 +1867,77 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
       </section>
     ),
     gallery: () => {
-      const gallerySlides: TedyGallerySlide[] = (galleryItems && galleryItems.length > 0)
-        ? galleryItems.slice(0, 6).map((item, idx) => ({
+      if (c?.gallery?.style === 'tedy') {
+        const tedySlides: TedyGallerySlide[] = (galleryItems && galleryItems.length > 0)
+          ? galleryItems.slice(0, 6).map((item, idx) => ({
+              id: item.id || idx,
+              title: item.title || 'Commercial Display Installation',
+              venue: item.description || 'Showroom & Retail Deployment · Real World Site',
+              tag: item.media_type === 'video' ? 'Video Demo' : item.media_type === 'instagram' ? 'Reel Showcase' : 'Live Installation',
+              img: item.thumbnail_url || item.media_url || '/p/ultraslim.jpg',
+              media_type: item.media_type,
+              media_url: item.media_url,
+              embed_url: item.embed_url,
+            }))
+          : [
+              {
+                id: 'g1',
+                title: 'Ultra-Slim Backlit Commercial Light Box',
+                venue: 'Flagship Luxury Storefront · Mumbai Retail Center',
+                tag: 'Storefront Display',
+                img: '/p/ultraslim.jpg',
+              },
+              {
+                id: 'g2',
+                title: 'E-Series 55" 4K Digital Wall Signage',
+                venue: 'Corporate Headquarters Atrium · Bangalore Tech Park',
+                tag: 'Corporate Signage',
+                img: '/p/frames.jpg',
+              },
+              {
+                id: 'g3',
+                title: 'Freestanding Double-Sided Digital Standee',
+                venue: 'Convention Center Lobby · New Delhi Exhibition',
+                tag: 'Freestanding Standee',
+                img: '/p/i-standee.jpg',
+              },
+              {
+                id: 'g4',
+                title: 'Magnetic Seamless LED Fabric Light Box',
+                venue: 'Automobile Experience Center · Chennai',
+                tag: 'Showroom Illumination',
+                img: '/p/fabric.jpg',
+              },
+              {
+                id: 'g5',
+                title: 'Heavy-Duty Commercial Outdoor Display',
+                venue: 'Shopping Boulevard & Pavilion Entrance',
+                tag: 'Outdoor Branding',
+                img: '/p/gazebo.jpg',
+              },
+            ]
+
+        return (
+          <TedyScrollGallery
+            slides={tedySlides}
+            isPreview={Boolean(previewProps)}
+            title={c?.gallery?.title || homeData?.gallery_title || 'Displays at work'}
+            eyebrow={c?.gallery?.subtitle || 'Commercial Installations'}
+            onOpenVideo={(url) => setActiveVideoModal(url)}
+            onOpenInstagram={(data) => setActiveInstagram(data)}
+          />
+        )
+      }
+
+      // Default & Recommended: Fey-style Stacked Cards (Apple / Linear sticky deck)
+      const feyItems: FeyGalleryItem[] = (galleryItems && galleryItems.length > 0)
+        ? galleryItems.slice(0, 5).map((item, idx) => ({
             id: item.id || idx,
             title: item.title || 'Commercial Display Installation',
-            venue: item.description || 'Showroom & Retail Deployment · Real World Site',
+            venue: item.description || 'Corporate & Retail Site Deployment',
+            city: (item as any).city || 'Pan-India',
             tag: item.media_type === 'video' ? 'Video Demo' : item.media_type === 'instagram' ? 'Reel Showcase' : 'Live Installation',
+            specs: ['Commercial Grade', 'High Luminance', 'Custom Branded'],
             img: item.thumbnail_url || item.media_url || '/p/ultraslim.jpg',
             media_type: item.media_type,
             media_url: item.media_url,
@@ -1692,48 +1945,58 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
           }))
         : [
             {
-              id: 'g1',
+              id: 'f1',
               title: 'Ultra-Slim Backlit Commercial Light Box',
-              venue: 'Flagship Luxury Storefront · Mumbai Retail Center',
-              tag: 'Storefront Display',
+              venue: 'Phoenix Marketcity Mall · Main Luxury Atrium',
+              city: 'Mumbai',
+              tag: '✦ Storefront Flagship',
+              specs: ['1200 Nits Edge-LED', '28mm Aircraft Aluminum', 'Snap-Frame Poster Swap'],
               img: '/p/ultraslim.jpg',
             },
             {
-              id: 'g2',
-              title: 'E-Series 55" 4K Digital Wall Signage',
-              venue: 'Corporate Headquarters Atrium · Bangalore Tech Park',
-              tag: 'Corporate Signage',
+              id: 'f2',
+              title: 'E-Series 55" 4K Commercial Wall Signage',
+              venue: 'Global Tech Park Headquarters · Reception & Directory',
+              city: 'Bangalore',
+              tag: '✦ Corporate Lobby',
+              specs: ['4K Ultra HD IPS', '24/7 Continuous Operation', 'Cloud CMS Broadcaster'],
               img: '/p/frames.jpg',
             },
             {
-              id: 'g3',
+              id: 'f3',
               title: 'Freestanding Double-Sided Digital Standee',
-              venue: 'Convention Center Lobby · New Delhi Exhibition',
-              tag: 'Freestanding Standee',
+              venue: 'Pragati Maidan Convention Center · Hall 4 Exhibition',
+              city: 'New Delhi',
+              tag: '✦ Exhibition & Events',
+              specs: ['Dual 55" FHD Displays', 'Heavy-Duty Steel Base', 'Built-in Stereo Audio'],
               img: '/p/i-standee.jpg',
             },
             {
-              id: 'g4',
+              id: 'f4',
               title: 'Magnetic Seamless LED Fabric Light Box',
-              venue: 'Automobile Experience Center · Chennai',
-              tag: 'Showroom Illumination',
+              venue: 'Mercedes-Benz Experience Center · Showroom Feature Wall',
+              city: 'Chennai',
+              tag: '✦ Automobile Showroom',
+              specs: ['Frameless Silicone Edge Graphic', 'Vibrant Color Accuracy', 'Modular Extrusion'],
               img: '/p/fabric.jpg',
             },
             {
-              id: 'g5',
-              title: 'Heavy-Duty Commercial Outdoor Display',
-              venue: 'Shopping Boulevard & Pavilion Entrance',
-              tag: 'Outdoor Branding',
+              id: 'f5',
+              title: 'Heavy-Duty Commercial Outdoor Pavilion Display',
+              venue: 'DLF CyberHub Open Promenade & Boulevard',
+              city: 'Gurugram',
+              tag: '✦ Outdoor Signage',
+              specs: ['IP65 Weatherproof', 'Anti-Glare Tempered Glass', 'Wind-Resistant Base'],
               img: '/p/gazebo.jpg',
             },
           ]
 
       return (
-        <TedyScrollGallery
-          slides={gallerySlides}
-          isPreview={Boolean(previewProps)}
+        <FeyStackedGallery
+          items={feyItems}
           title={c?.gallery?.title || homeData?.gallery_title || 'Displays at work'}
-          eyebrow={c?.gallery?.subtitle || 'Commercial Installations'}
+          eyebrow={c?.gallery?.subtitle || 'Live Installations'}
+          isPreview={Boolean(previewProps)}
           onOpenVideo={(url) => setActiveVideoModal(url)}
           onOpenInstagram={(data) => setActiveInstagram(data)}
         />

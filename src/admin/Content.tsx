@@ -76,7 +76,7 @@ const INIT = {
   industries: INDUSTRIES.slice(0, 4).map((_, i) => i),
   video: { title: 'See it in action', url: '', poster: '/p/i-standee.jpg' },
   benefits: [{ t: 'Custom artwork', d: 'Upload your design and preview it before you order.' }, { t: 'Made to order', d: 'Sizes and finishes configured to your space.' }, { t: 'Quotes on request', d: 'Ask our team for a quotation on any product.' }],
-  gallery: { title: 'From our gallery', count: '4' },
+  gallery: { title: 'From our gallery', subtitle: 'Live Installations', count: '4', style: 'fey' },
   tf: { faqs: [0, 1, 2] as number[] },
   contact: { title: 'Ready to light up your brand?', text: 'Tell us what you need and we will get back to you.', cta: 'Contact us', to: '/contact' },
 }
@@ -552,7 +552,17 @@ export function HomepageEditor(_: any) {
       case 'logos': return link('/admin/logos', 'Logos are verified and managed in Client logos. Empty slots stay hidden on the live site.')
       case 'video': return <><Field label="Heading"><Input value={c.video.title} onChange={(e) => set('video', { title: e.target.value })} /></Field><Field label="Video URL"><Input value={c.video.url} onChange={(e) => set('video', { url: e.target.value })} placeholder="Paste a video link" /></Field><ImgField label="Poster image" value={c.video.poster} onChange={(s) => set('video', { poster: s })} /></>
       case 'benefits': return <>{c.benefits.map((b, i) => <div key={i} className="space-y-2 rounded-dd border border-line p-3"><div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-ink-2">Benefit {i + 1}</span><Mover i={i} n={c.benefits.length} onMove={(d) => set('benefits', mv(c.benefits, i, d))} extra={<button aria-label="Remove" onClick={() => set('benefits', c.benefits.filter((_, j) => j !== i))} className="grid size-7 place-items-center rounded hover:bg-soft"><Trash2 className="size-4" /></button>} /></div><Input value={b.t} placeholder="Title" onChange={(e) => set('benefits', c.benefits.map((x, j) => (j === i ? { ...x, t: e.target.value } : x)))} /><Textarea value={b.d} placeholder="Description" className="min-h-16" onChange={(e) => set('benefits', c.benefits.map((x, j) => (j === i ? { ...x, d: e.target.value } : x)))} /></div>)}<Btn size="sm" variant="secondary" icon={<Plus className="size-4" />} onClick={() => set('benefits', [...c.benefits, { t: '', d: '' }])}>Add benefit</Btn></>
-      case 'gallery': return <><Field label="Heading"><Input value={c.gallery.title} onChange={(e) => set('gallery', { title: e.target.value })} /></Field><Field label="Items shown"><Select value={c.gallery.count} onChange={(e) => set('gallery', { count: e.target.value })}>{['4', '6', '8'].map((n) => <option key={n}>{n}</option>)}</Select></Field>{link('/admin/gallery', 'Choose which items appear in Gallery & videos.')}</>
+      case 'gallery': return <>
+        <Field label="Section heading"><Input value={c.gallery.title} onChange={(e) => set('gallery', { title: e.target.value })} /></Field>
+        <Field label="Animation style">
+          <Select value={c.gallery.style || 'fey'} onChange={(e) => set('gallery', { style: e.target.value })}>
+            <option value="fey">Stacked Cards (Fey / Apple Deck)</option>
+            <option value="tedy">3D In-Place Scroll (Tedy)</option>
+          </Select>
+        </Field>
+        <Field label="Items shown"><Select value={c.gallery.count} onChange={(e) => set('gallery', { count: e.target.value })}>{['4', '5', '6', '8'].map((n) => <option key={n}>{n}</option>)}</Select></Field>
+        {link('/admin/gallery', 'Upload installation photos, videos and Instagram reels in Gallery & videos.')}
+      </>
       case 'tf': return <><p className="text-[13px] font-semibold">FAQs to show</p>{FAQS.map((f, i) => <Check_ key={i} checked={c.tf.faqs.includes(i)} onChange={() => set('tf', { faqs: toggleIn(c.tf.faqs, i) })} label={f[0]} />)}{link('/admin/testimonials', 'Only approved testimonials with customer consent are shown. None are published yet.')}</>
       case 'contact': return <><Field label="Heading"><Input value={c.contact.title} onChange={(e) => set('contact', { title: e.target.value })} /></Field><Field label="Text"><Textarea value={c.contact.text} onChange={(e) => set('contact', { text: e.target.value })} /></Field><Field label="Button label"><Input value={c.contact.cta} onChange={(e) => set('contact', { cta: e.target.value })} /></Field><Field label="Button destination"><PageSelect value={c.contact.to} onChange={(v) => set('contact', { to: v })} /></Field></>
       default: return link('/admin/footer', 'Footer columns, policies and contact details are managed in Footer & policies.')
