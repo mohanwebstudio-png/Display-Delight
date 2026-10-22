@@ -215,14 +215,24 @@ def get_homepage_editor_data(
         "announce", "header", "hero", "cats", "featured", "intro",
         "industries", "logos", "video", "benefits", "gallery", "tf", "contact", "footer"
     ]
+    sorted_db_secs = sorted(sections, key=lambda s: s.display_order if s.display_order is not None else 999)
     secs_out = []
+    seen = set()
+    for s in sorted_db_secs:
+        if s.section_key in all_known_keys:
+            secs_out.append({
+                "id": s.section_key,
+                "on": bool(s.is_visible),
+                "order": s.display_order,
+            })
+            seen.add(s.section_key)
     for k in all_known_keys:
-        sec_obj = sec_map.get(k)
-        secs_out.append({
-            "id": k,
-            "on": sec_obj.is_visible if sec_obj else True,
-            "order": sec_obj.display_order if sec_obj else 0,
-        })
+        if k not in seen:
+            secs_out.append({
+                "id": k,
+                "on": True,
+                "order": len(secs_out) + 1,
+            })
 
     return {
         "secs": secs_out,
@@ -241,9 +251,11 @@ def save_homepage_editor_data(
     c = payload.get("c", {})
     secs = payload.get("secs", [])
     secs_on_map = {s.get("id"): bool(s.get("on", True)) for s in secs}
+    order_map = {s.get("id"): i for i, s in enumerate(secs, start=1) if s.get("id")}
 
-    def _get_or_create_sec(key: str, order: int) -> HomepageSection:
+    def _get_or_create_sec(key: str, default_order: int) -> HomepageSection:
         sec = db.query(HomepageSection).filter(HomepageSection.section_key == key).first()
+        order = order_map.get(key, default_order)
         if not sec:
             sec = HomepageSection(section_key=key, display_order=order)
             db.add(sec)
@@ -255,19 +267,17 @@ def save_homepage_editor_data(
     idx = 1
     # 1. Announce
     if "announce" in c:
-        ann = _get_or_create_sec("announce", idx)
+        ann = _get_or_create_sec("announce", order_map.get("announce", idx))
         ann.title = c["announce"].get("text", "")
         ann.cta_url = c["announce"].get("link", "/shop")
         idx += 1
 
     # 2. Header
-    if "header" in c:
-        _get_or_create_sec("header", idx)
-        idx += 1
+    _get_or_create_sec("header", order_map.get("header", 2))
 
     # 3. Hero
     if "hero" in c:
-        hero = _get_or_create_sec("hero", idx)
+        hero = _get_or_create_sec("hero", order_map.get("hero", 3))
         hero.title = c["hero"].get("headline", "")
         hero.subtitle = c["hero"].get("sub", "")
         hero.image_url = c["hero"].get("img", "")
@@ -278,82 +288,74 @@ def save_homepage_editor_data(
             "c2": c["hero"].get("c2", "Request a quote"),
             "c2to": c["hero"].get("c2to", "/quote"),
         })
-        idx += 1
 
     # 4. Categories
     if "cats" in c:
-        cat_sec = _get_or_create_sec("cats", idx)
+        cat_sec = _get_or_create_sec("cats", order_map.get("cats", 4))
         cat_sec.title = "Shop by Category"
         cat_sec.content = json.dumps(c["cats"])
-        idx += 1
 
     # 5. Featured
     if "featured" in c:
-        feat = _get_or_create_sec("featured", idx)
+        feat = _get_or_create_sec("featured", order_map.get("featured", 5))
         feat.title = "Featured Products"
         feat.content = json.dumps(c["featured"])
-        idx += 1
 
     # 6. Intro
     if "intro" in c:
-        intro = _get_or_create_sec("intro", idx)
+        intro = _get_or_create_sec("intro", order_map.get("intro", 6))
         intro.title = c["intro"].get("title", "")
         intro.subtitle = c["intro"].get("text", "")
         intro.image_url = c["intro"].get("img", "")
-        idx += 1
 
     # 7. Industries
     if "industries" in c:
-        ind = _get_or_create_sec("industries", idx)
+        ind = _get_or_create_sec("industries", order_map.get("industries", 7))
         ind.title = "Industries"
         ind.content = json.dumps(c["industries"])
-        idx += 1
 
     # 8. Logos
-    _get_or_create_sec("logos", idx)
-    idx += 1
+    _get_or_create_sec("logos", order_map.get("logos", 8))
 
     # 9. Video
     if "video" in c:
-        vid = _get_or_create_sec("video", idx)
+        vid = _get_or_create_sec("video", order_map.get("video", 9))
         vid.title = c["video"].get("title", "")
         vid.cta_url = c["video"].get("url", "")
         vid.image_url = c["video"].get("poster", "")
-        idx += 1
 
     # 10. Benefits
     if "benefits" in c:
-        ben = _get_or_create_sec("benefits", idx)
+        ben = _get_or_create_sec("benefits", order_map.get("benefits", 10))
         ben.title = "Why DisplayDelight"
         ben.content = json.dumps(c["benefits"])
-        idx += 1
 
     # 11. Gallery
     if "gallery" in c:
-        gal = _get_or_create_sec("gallery", idx)
+        gal = _get_or_create_sec("gallery", order_map.get("gallery", 11))
         gal.title = c["gallery"].get("title", "From our gallery")
         gal.content = json.dumps(c["gallery"])
-        idx += 1
 
     # 12. TF (Testimonials & FAQ)
     if "tf" in c:
-        tf = _get_or_create_sec("tf", idx)
+        tf = _get_or_create_sec("tf", order_map.get("tf", 12))
         tf.title = "Testimonials & FAQs"
         tf.content = json.dumps(c["tf"])
-        idx += 1
 
     # 13. Contact
     if "contact" in c:
-        cnt = _get_or_create_sec("contact", idx)
+        cnt = _get_or_create_sec("contact", order_map.get("contact", 13))
         cnt.title = c["contact"].get("title", "")
         cnt.subtitle = c["contact"].get("text", "")
         cnt.cta_label = c["contact"].get("cta", "Contact us")
         cnt.cta_url = c["contact"].get("to", "/contact")
-        idx += 1
 
     # 14. Footer
-    _get_or_create_sec("footer", idx)
-    idx += 1
+    _get_or_create_sec("footer", order_map.get("footer", 14))
+
+    # Ensure any remaining sections in order_map are updated
+    for sid, ord_val in order_map.items():
+        _get_or_create_sec(sid, ord_val)
 
     db.commit()
 

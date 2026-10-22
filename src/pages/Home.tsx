@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, type ReactNode } from 'react'
-import { ArrowRight, ArrowUpRight, Layers, Mail, MessageCircle, Play, Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X } from 'lucide-react'
+import { ArrowRight, ArrowUp, ArrowDown, ArrowUpRight, Layers, Mail, MessageCircle, Play, Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X } from 'lucide-react'
 import { INDUSTRIES, FAQS as FALLBACK_FAQS, CATS, byId } from '../data'
 import { Link, useApp, resolveAssetUrl } from '../store'
 import { Accordion, Btn, Container, ProductCard, SectionHead, Badge, InstagramIcon, cx } from '../ui'
@@ -14,6 +14,8 @@ export interface HomePreviewProps {
   c?: any
   selectedSection?: string
   onSelectSection?: (id: string) => void
+  onMoveSection?: (id: string, delta: number) => void
+  onToggleSection?: (id: string, on: boolean) => void
   mode?: string
 }
 
@@ -190,7 +192,30 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
     { id: 'footer', label: 'Footer & policies' },
   ]
 
-  const activeSecs = previewProps?.secs || defaultSecs.map((s) => ({ ...s, on: true }))
+  const activeSecs = useMemo(() => {
+    if (previewProps?.secs && previewProps.secs.length > 0) {
+      return previewProps.secs
+    }
+    const orderFromDb = homeData?.sections_order || (Array.isArray(homeData?.sections) ? homeData.sections.map((s: any) => s.section_key || s.id).filter(Boolean) : null)
+    if (orderFromDb && orderFromDb.length > 0) {
+      const list: Array<{ id: string; label: string; on: boolean }> = []
+      const seen = new Set<string>()
+      orderFromDb.forEach((key: string) => {
+        const def = defaultSecs.find((d) => d.id === key)
+        const isVis = homeData?.sections_visibility ? homeData.sections_visibility[key] !== false : true
+        list.push({ id: key, label: def?.label || key, on: isVis })
+        seen.add(key)
+      })
+      defaultSecs.forEach((def) => {
+        if (!seen.has(def.id)) {
+          const isVis = homeData?.sections_visibility ? homeData.sections_visibility[def.id] !== false : true
+          list.push({ ...def, on: isVis })
+        }
+      })
+      return list
+    }
+    return defaultSecs.map((s) => ({ ...s, on: true }))
+  }, [previewProps?.secs, homeData?.sections_order, homeData?.sections, homeData?.sections_visibility])
 
   const isVisible = (key: string) => {
     if (previewProps?.secs) {
@@ -200,7 +225,7 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
     return homeData?.sections_visibility?.[key] !== false
   }
 
-  const renderSectionWrapper = (id: string, content: ReactNode, label: string) => {
+  const renderSectionWrapper = (id: string, content: ReactNode, label: string, index: number, total: number) => {
     if (!previewProps) return <div key={id}>{content}</div>
     const isSelected = previewProps.selectedSection === id
     return (
@@ -211,19 +236,58 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
           previewProps.onSelectSection?.(id)
         }}
         className={cx(
-          'relative transition-all duration-150',
+          'group/sec relative transition-all duration-150',
           previewProps.onSelectSection && 'cursor-pointer',
           isSelected
             ? 'ring-4 ring-brand ring-offset-2 z-20 shadow-xl'
             : 'hover:ring-2 hover:ring-brand/40'
         )}
       >
-        {isSelected && (
-          <div className="absolute top-3 left-3 z-30 flex items-center gap-2 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white shadow-lg animate-pop">
+        {/* Floating section management badge & position controls directly on the canvas */}
+        <div
+          className={cx(
+            'absolute top-3 left-3 z-30 flex items-center gap-2 rounded-lg shadow-xl backdrop-blur transition-all duration-200 pointer-events-auto',
+            isSelected
+              ? 'opacity-100 bg-brand text-white p-1 pl-3 ring-2 ring-white/30 scale-100'
+              : 'opacity-0 group-hover/sec:opacity-100 bg-navy/90 text-white p-1 pl-2.5 scale-95 group-hover/sec:scale-100'
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-1.5 text-xs font-bold">
             <span className="size-2 rounded-full bg-white animate-pulse" />
-            <span>Editing Section: {label}</span>
+            <span className="rounded bg-black/25 px-1.5 py-0.5 text-[10px] tracking-wide">#{index + 1}</span>
+            <span className="truncate max-w-[140px] sm:max-w-none">{label}</span>
           </div>
-        )}
+
+          <div className="flex items-center gap-0.5 border-l border-white/20 pl-1.5">
+            <button
+              type="button"
+              disabled={index === 0}
+              onClick={() => previewProps.onMoveSection?.(id, -1)}
+              title="Move section up"
+              className="grid size-6 place-items-center rounded bg-white/15 hover:bg-white/35 active:scale-95 disabled:opacity-25 disabled:pointer-events-none transition"
+            >
+              <ArrowUp className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              disabled={index === total - 1}
+              onClick={() => previewProps.onMoveSection?.(id, 1)}
+              title="Move section down"
+              className="grid size-6 place-items-center rounded bg-white/15 hover:bg-white/35 active:scale-95 disabled:opacity-25 disabled:pointer-events-none transition"
+            >
+              <ArrowDown className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => previewProps.onSelectSection?.(id)}
+              className="ml-0.5 rounded bg-white/20 px-2 py-0.5 text-[11px] font-bold hover:bg-white/35 active:scale-95 transition"
+            >
+              {isSelected ? 'Editing' : 'Edit'}
+            </button>
+          </div>
+        </div>
+
         {content}
       </div>
     )
@@ -700,14 +764,14 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
 
   return (
     <>
-      {activeSecs.map((sec) => {
+      {activeSecs.map((sec, idx) => {
         if (!isVisible(sec.id)) return null
         const render = sectionRenderers[sec.id]
         if (!render) return null
         const content = render()
         if (!content) return null
         const label = sec.label || defaultSecs.find((d) => d.id === sec.id)?.label || sec.id
-        return renderSectionWrapper(sec.id, content, label)
+        return renderSectionWrapper(sec.id, content, label, idx, activeSecs.length)
       })}
 
       {/* Video Modal Player */}

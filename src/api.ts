@@ -234,6 +234,7 @@ export interface ApiOrderDetail extends ApiOrderSummary {
 
 export interface ApiHomepageData {
   sections?: any[]
+  sections_order?: string[]
   sections_visibility?: Record<string, boolean>
   hero?: {
     headline?: string

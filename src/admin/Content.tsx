@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Film, GripVertical, Image as ImgIcon, Indent, Italic, LayoutGrid, Link2, List, ListOrdered, Lock, Play, Plus, RefreshCw, Rocket, Save, Search, Trash2, Upload, X, Outdent, ShieldCheck, Check, ExternalLink, Video } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Film, GripVertical, Image as ImgIcon, Indent, Italic, LayoutGrid, Link2, List, ListOrdered, Lock, Maximize2, Minimize2, Play, Plus, RefreshCw, Rocket, Save, Search, Trash2, Upload, X, Outdent, ShieldCheck, Check, ExternalLink, Video } from 'lucide-react'
 import { Badge, Btn, Check_, Drawer, EmptyState, Field, Input, Modal, Notice, Segmented, Select, StarRating, Switch, Tabs, Textarea, Uploader, useUpload, cx, InstagramIcon } from '../ui'
 import { go, useApp } from '../store'
 import { CATS, FAQS, INDUSTRIES, PRODUCTS, byId, catName } from '../data'
@@ -81,18 +81,102 @@ function Preview({
   c,
   sel,
   onSel,
+  onMoveSec,
+  onToggleSec,
   mode = 'desktop',
 }: {
   secs: { id: string; on: boolean; label?: string }[]
   c: Cfg
   sel?: string
   onSel?: (id: string) => void
+  onMoveSec?: (id: string, delta: number) => void
+  onToggleSec?: (id: string, on: boolean) => void
   mode?: string
 }) {
-  const w = mode === 'mobile' ? 'max-w-[400px]' : mode === 'tablet' ? 'max-w-[768px]' : 'w-full'
+  if (mode === 'mobile') {
+    return (
+      <div className="mx-auto my-3 max-w-[400px] transition-all duration-300">
+        <div className="relative mx-auto rounded-[46px] border-[10px] border-neutral-900 bg-neutral-900 p-2 shadow-2xl ring-1 ring-black/25">
+          {/* Phone Speaker & Camera Notch */}
+          <div className="absolute left-1/2 top-3.5 z-40 h-4.5 w-28 -translate-x-1/2 rounded-full bg-neutral-950 flex items-center justify-center gap-2">
+            <span className="size-2 rounded-full bg-neutral-800" />
+            <span className="h-1 w-7 rounded-full bg-neutral-800" />
+          </div>
+          <div className="max-h-[760px] overflow-y-auto rounded-[36px] bg-white pt-6">
+            <Home
+              previewProps={{
+                secs,
+                c,
+                selectedSection: sel,
+                onSelectSection: onSel,
+                onMoveSection: onMoveSec,
+                onToggleSection: onToggleSec,
+                mode,
+              }}
+            />
+          </div>
+          {/* Phone Bottom Home Bar */}
+          <div className="mx-auto mt-2 h-1 w-28 rounded-full bg-neutral-700" />
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === 'tablet') {
+    return (
+      <div className="mx-auto my-3 max-w-[768px] transition-all duration-300">
+        <div className="relative mx-auto rounded-[32px] border-[10px] border-neutral-800 bg-neutral-800 p-2 shadow-2xl ring-1 ring-black/25">
+          {/* Tablet Camera Dot */}
+          <div className="absolute left-1/2 top-2 z-40 size-2.5 -translate-x-1/2 rounded-full bg-neutral-950" />
+          <div className="max-h-[760px] overflow-y-auto rounded-[24px] bg-white pt-3">
+            <Home
+              previewProps={{
+                secs,
+                c,
+                selectedSection: sel,
+                onSelectSection: onSel,
+                onMoveSection: onMoveSec,
+                onToggleSection: onToggleSec,
+                mode,
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Desktop mode: clean browser frame mockup
   return (
-    <div className={cx('mx-auto transition-all duration-300 overflow-hidden rounded-xl border border-line bg-white shadow-xl', w)}>
-      <Home previewProps={{ secs, c, selectedSection: sel, onSelectSection: onSel, mode }} />
+    <div className="mx-auto w-full transition-all duration-300 overflow-hidden rounded-xl border border-line bg-white shadow-xl">
+      {/* Browser Chrome Top Header */}
+      <div className="flex items-center justify-between border-b border-line bg-neutral-100 px-4 py-2 select-none">
+        <div className="flex items-center gap-1.5">
+          <span className="size-3 rounded-full bg-[#ff5f56] border border-black/10" />
+          <span className="size-3 rounded-full bg-[#ffbd2e] border border-black/10" />
+          <span className="size-3 rounded-full bg-[#27c93f] border border-black/10" />
+        </div>
+        <div className="flex items-center gap-2 rounded-md bg-white px-3 py-1 text-[11px] font-medium text-ink-2 shadow-xs border border-line/60 w-64 max-w-full justify-center">
+          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="truncate">https://displaydelight.com</span>
+        </div>
+        <div className="text-[10px] font-bold text-ink-2 uppercase tracking-wider">
+          Desktop View
+        </div>
+      </div>
+      <div className="max-h-[calc(100vh-230px)] overflow-y-auto bg-white">
+        <Home
+          previewProps={{
+            secs,
+            c,
+            selectedSection: sel,
+            onSelectSection: onSel,
+            onMoveSection: onMoveSec,
+            onToggleSection: onToggleSec,
+            mode,
+          }}
+        />
+      </div>
     </div>
   )
 }
@@ -108,11 +192,29 @@ export function HomepageEditor(_: any) {
   const [pub, setPub] = useState(false)
   const [prev, setPrev] = useState(false)
   const [mode, setMode] = useState('desktop')
+  const [focusCanvas, setFocusCanvas] = useState(false)
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+
   const touch = () => setChanged(true)
   const set = <K extends keyof Cfg>(k: K, v: Partial<Cfg[K]> | Cfg[K]) => { setC((x) => ({ ...x, [k]: Array.isArray(v) ? v : { ...(x[k] as object), ...(v as object) } })); touch() }
   const setList = (k: 'cats' | 'featured' | 'industries', v: any[]) => { setC((x) => ({ ...x, [k]: v })); touch() }
   const label = SECS.find((s) => s[0] === sel)![1]
   const toggleIn = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
+
+  const moveSec = (id: string, delta: number) => {
+    setSecs((prev) => {
+      const idx = prev.findIndex((s) => s.id === id)
+      if (idx < 0) return prev
+      return mv(prev, idx, delta)
+    })
+    touch()
+  }
+
+  const toggleSec = (id: string, on: boolean) => {
+    setSecs((prev) => prev.map((s) => (s.id === id ? { ...s, on } : s)))
+    touch()
+  }
 
   useEffect(() => {
     adminApi.getHomepageContent()
@@ -128,11 +230,29 @@ export function HomepageEditor(_: any) {
           }))
         }
         if (Array.isArray(res?.secs) && res.secs.length > 0) {
-          const map = new Map(res.secs.map((s: any) => [s.id, Boolean(s.on)]))
-          setSecs((prev) => prev.map((s) => ({
-            ...s,
-            on: map.has(s.id) ? Boolean(map.get(s.id)) : s.on,
-          })))
+          const allKnownMap = new Map(SECS.map(([id, label]) => [id as string, label as string]))
+          const orderedSecs: Array<{ id: string; label: string; on: boolean }> = []
+          const seen = new Set<string>()
+
+          res.secs.forEach((s: any) => {
+            const sid = s.id || s.section_key
+            if (sid && allKnownMap.has(sid)) {
+              orderedSecs.push({
+                id: sid,
+                label: allKnownMap.get(sid)!,
+                on: Boolean(s.on ?? s.is_visible ?? true),
+              })
+              seen.add(sid)
+            }
+          })
+
+          SECS.forEach(([id, label]) => {
+            if (!seen.has(id)) {
+              orderedSecs.push({ id, label, on: true })
+            }
+          })
+
+          setSecs(orderedSecs)
         }
       })
       .catch((err) => console.warn('Homepage content fetch:', err))
@@ -197,14 +317,117 @@ export function HomepageEditor(_: any) {
     </>
   )
   const list = (
-    <Card pad={false} title="Sections">
-      <ul className="max-h-[calc(100vh-260px)] divide-y divide-line overflow-y-auto">
+    <Card
+      pad={false}
+      title="Section Hierarchy"
+      desc="Drag or click arrows to reorder homepage layout"
+    >
+      <div className="p-2.5 border-b border-line bg-soft/60 flex items-center justify-between text-xs text-ink-2 font-medium">
+        <span>{secs.filter((s) => s.on).length} active / {secs.length} total</span>
+        <button
+          type="button"
+          onClick={() => {
+            setSecs(SECS.map(([id, label]) => ({ id: id as string, label: label as string, on: true })))
+            touch()
+          }}
+          className="text-brand hover:underline font-semibold"
+        >
+          Reset Default
+        </button>
+      </div>
+      <ul className="max-h-[calc(100vh-300px)] divide-y divide-line overflow-y-auto p-1.5 space-y-1">
         {secs.map((s, i) => (
-          <li key={s.id} className={cx('flex items-center gap-1 px-2 py-2', sel === s.id && 'bg-brand-soft/60', !s.on && 'opacity-50')}>
-            <GripVertical className="size-4 shrink-0 text-ink-2/60" />
-            <button onClick={() => { setSel(s.id); setTab('edit') }} className="min-w-0 flex-1 truncate text-left text-sm font-semibold">{s.label}</button>
-            <Mover i={i} n={secs.length} onMove={(d) => { setSecs(mv(secs, i, d)); touch() }} />
-            <Switch on={s.on} onChange={(v) => { setSecs(secs.map((x) => (x.id === s.id ? { ...x, on: v } : x))); touch() }} label={`Show ${s.label}`} />
+          <li
+            key={s.id}
+            draggable
+            onDragStart={(e) => {
+              setDragIdx(i)
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('text/plain', s.id)
+            }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+              if (dragOverIdx !== i) setDragOverIdx(i)
+            }}
+            onDragLeave={() => {
+              if (dragOverIdx === i) setDragOverIdx(null)
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              if (dragIdx !== null && dragIdx !== i) {
+                setSecs((prev) => {
+                  const copy = [...prev]
+                  const [moved] = copy.splice(dragIdx, 1)
+                  copy.splice(i, 0, moved)
+                  return copy
+                })
+                touch()
+              }
+              setDragIdx(null)
+              setDragOverIdx(null)
+            }}
+            onDragEnd={() => {
+              setDragIdx(null)
+              setDragOverIdx(null)
+            }}
+            className={cx(
+              'group flex items-center gap-1.5 px-2 py-2 rounded-lg transition-all duration-150 cursor-grab active:cursor-grabbing select-none',
+              sel === s.id ? 'bg-brand/10 border-l-4 border-brand shadow-xs' : 'hover:bg-soft',
+              dragOverIdx === i && 'border-t-2 border-brand bg-brand-soft/80 scale-[1.01]',
+              dragIdx === i && 'opacity-35 scale-95',
+              !s.on && 'opacity-50 bg-neutral-50/70'
+            )}
+          >
+            <span className="grid size-5 place-items-center text-ink-2/50 group-hover:text-brand cursor-grab">
+              <GripVertical className="size-3.5" />
+            </span>
+            <span className="flex size-5 shrink-0 items-center justify-center rounded bg-line/80 text-[10px] font-bold text-ink-2">
+              {i + 1}
+            </span>
+            <button
+              type="button"
+              onClick={() => { setSel(s.id); setTab('edit') }}
+              className="min-w-0 flex-1 truncate text-left text-xs font-semibold text-ink hover:text-brand"
+            >
+              {s.label}
+            </button>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button
+                type="button"
+                title="Move up"
+                disabled={i === 0}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSecs(mv(secs, i, -1))
+                  touch()
+                }}
+                className="grid size-6 place-items-center rounded bg-line/40 hover:bg-line text-ink-2 hover:text-ink disabled:opacity-20 transition"
+              >
+                <ArrowUp className="size-3" />
+              </button>
+              <button
+                type="button"
+                title="Move down"
+                disabled={i === secs.length - 1}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSecs(mv(secs, i, 1))
+                  touch()
+                }}
+                className="grid size-6 place-items-center rounded bg-line/40 hover:bg-line text-ink-2 hover:text-ink disabled:opacity-20 transition"
+              >
+                <ArrowDown className="size-3" />
+              </button>
+            </div>
+            <Switch
+              on={s.on}
+              onChange={(v) => {
+                setSecs(secs.map((x) => (x.id === s.id ? { ...x, on: v } : x)))
+                touch()
+              }}
+              label={`Show ${s.label}`}
+            />
           </li>
         ))}
       </ul>
@@ -220,9 +443,17 @@ export function HomepageEditor(_: any) {
         </div>
       </div>
       <div className="mb-4 lg:hidden"><Tabs value={tab} onChange={setTab} tabs={[{ value: 'sections', label: 'Sections' }, { value: 'preview', label: 'Preview' }, { value: 'edit', label: 'Edit' }]} /></div>
-      <div className="grid items-start gap-5 lg:grid-cols-[270px_minmax(0,1fr)_340px]">
-        <div className={show('sections')}>{list}</div>
-        <div className={cx(show('preview'), 'lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto lg:rounded-xl lg:bg-soft lg:p-4')}>
+      <div className={cx(
+        'grid items-start gap-5 transition-all duration-300',
+        focusCanvas
+          ? 'grid-cols-1'
+          : 'lg:grid-cols-[280px_minmax(0,1fr)_350px]'
+      )}>
+        {!focusCanvas && <div className={show('sections')}>{list}</div>}
+        <div className={cx(
+          show('preview'),
+          'lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto lg:rounded-xl lg:bg-soft/70 lg:p-4 border border-line/60'
+        )}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-navy">Exact Storefront Live Preview</span>
@@ -241,14 +472,40 @@ export function HomepageEditor(_: any) {
                   { value: 'mobile', label: 'Mobile' },
                 ]}
               />
+              <Btn
+                size="sm"
+                variant={focusCanvas ? 'dark' : 'secondary'}
+                icon={focusCanvas ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+                onClick={() => setFocusCanvas(!focusCanvas)}
+              >
+                {focusCanvas ? 'Exit Focus' : 'Focus Preview'}
+              </Btn>
               <Btn size="sm" variant="secondary" icon={<Eye className="size-3.5" />} onClick={() => setPrev(true)}>
                 Fullscreen
               </Btn>
             </div>
           </div>
-          <Preview secs={secs} c={c} sel={sel} onSel={(id) => { setSel(id); if (window.innerWidth < 1024) setTab('edit') }} mode={mode} />
+          <Preview
+            secs={secs}
+            c={c}
+            sel={sel}
+            onSel={(id) => {
+              setSel(id)
+              if (focusCanvas) setFocusCanvas(false)
+              if (window.innerWidth < 1024) setTab('edit')
+            }}
+            onMoveSec={moveSec}
+            onToggleSec={toggleSec}
+            mode={mode}
+          />
         </div>
-        <div className={show('edit')}><Card title={label} desc="Edit this section"><div className="space-y-4">{editor}</div></Card></div>
+        {!focusCanvas && (
+          <div className={show('edit')}>
+            <Card title={label} desc="Edit this section">
+              <div className="space-y-4">{editor}</div>
+            </Card>
+          </div>
+        )}
       </div>
       <Drawer open={prev} onClose={() => setPrev(false)} title="Full Homepage Preview" width="max-w-7xl">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -264,7 +521,15 @@ export function HomepageEditor(_: any) {
           <p className="text-xs text-ink-2">Live responsive storefront preview. Click any section to select it in the editor.</p>
         </div>
         <div className="rounded-xl bg-soft p-2 sm:p-6 overflow-x-auto">
-          <Preview secs={secs} c={c} sel={sel} onSel={(id) => { setSel(id); setPrev(false); setTab('edit') }} mode={mode} />
+          <Preview
+            secs={secs}
+            c={c}
+            sel={sel}
+            onSel={(id) => { setSel(id); setPrev(false); setTab('edit') }}
+            onMoveSec={moveSec}
+            onToggleSec={toggleSec}
+            mode={mode}
+          />
         </div>
       </Drawer>
       <Modal open={pub} onClose={() => setPub(false)} title="Publish homepage?" footer={<div className="flex justify-end gap-2"><Btn variant="secondary" onClick={() => setPub(false)}>Cancel</Btn><Btn onClick={() => saveHomepage(true)}>Publish now</Btn></div>}>

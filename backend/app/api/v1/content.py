@@ -289,6 +289,7 @@ def get_homepage(
 
     return {
         "sections": [HomepageSectionOut.model_validate(s) for s in visible_sections],
+        "sections_order": [s.section_key for s in visible_sections],
         "sections_visibility": sec_vis_map,
         "hero": hero_data,
         "announce": announce_data,
