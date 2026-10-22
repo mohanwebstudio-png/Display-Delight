@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo, type ReactNode } from 'react'
-import { ArrowRight, ArrowUp, ArrowDown, ArrowUpRight, Layers, Mail, MessageCircle, Play, Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X, ShieldCheck, Box, SlidersHorizontal, Check, RefreshCw } from 'lucide-react'
+import { useEffect, useState, useMemo, useRef, type ReactNode } from 'react'
+import { ArrowRight, ArrowUp, ArrowDown, ArrowUpRight, Layers, Mail, MessageCircle, Play, Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X, ShieldCheck, Box, SlidersHorizontal, Check, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import { INDUSTRIES, FAQS as FALLBACK_FAQS, CATS, byId } from '../data'
 import { Link, useApp, resolveAssetUrl } from '../store'
 import { Accordion, Btn, Container, ProductCard, SectionHead, Badge, InstagramIcon, cx } from '../ui'
@@ -101,6 +101,466 @@ export interface HomePreviewProps {
   onMoveSection?: (id: string, delta: number) => void
   onToggleSection?: (id: string, on: boolean) => void
   mode?: string
+}
+
+function HorizontalCategorySection({
+  displayCats,
+  products,
+  isPreview,
+}: {
+  displayCats: any[]
+  products: any[]
+  isPreview?: boolean
+}) {
+  const sectionRef = useRef<HTMLDivElement>(null)
+  const stickyRef = useRef<HTMLDivElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [progress, setProgress] = useState(0)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  const totalCards = displayCats.length
+
+  // Calculate horizontal travel distance
+  const getTravelDistance = () => {
+    if (!trackRef.current || !stickyRef.current) return 0
+    const trackWidth = trackRef.current.scrollWidth
+    const viewportWidth = stickyRef.current.clientWidth
+    return Math.max(0, trackWidth - viewportWidth + 64)
+  }
+
+  // Scroll listener: translates vertical page scroll to horizontal track movement
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return
+
+    // Find nearest scrollable container (handles admin preview simulation) or window
+    const scrollParent = section.closest('.overflow-y-auto') || window
+
+    const onScroll = () => {
+      if (!sectionRef.current || !trackRef.current || !stickyRef.current) return
+      const maxTranslate = getTravelDistance()
+      if (maxTranslate <= 0) return
+
+      let p = 0
+      if (scrollParent === window) {
+        const rect = section.getBoundingClientRect()
+        const totalHeight = section.offsetHeight - window.innerHeight
+        if (totalHeight > 0) {
+          const scrolled = -rect.top
+          p = Math.min(Math.max(scrolled / totalHeight, 0), 1)
+        }
+      } else {
+        const parentElem = scrollParent as HTMLElement
+        const parentScrollTop = parentElem.scrollTop
+        const sectionOffsetTop = section.offsetTop
+        const totalHeight = section.offsetHeight - parentElem.clientHeight
+        if (totalHeight > 0) {
+          const scrolled = parentScrollTop - sectionOffsetTop
+          p = Math.min(Math.max(scrolled / totalHeight, 0), 1)
+        }
+      }
+
+      setProgress(p)
+      const currentTranslate = p * maxTranslate
+      trackRef.current.style.transform = `translate3d(-${currentTranslate}px, 0, 0)`
+
+      if (totalCards > 0) {
+        const idx = Math.min(Math.floor(p * totalCards + 0.15), totalCards - 1)
+        setActiveIndex(idx)
+      }
+    }
+
+    scrollParent.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+    onScroll()
+
+    return () => {
+      scrollParent.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [totalCards])
+
+  // Programmatic scroll to category
+  const scrollToCategory = (index: number) => {
+    const section = sectionRef.current
+    if (!section || totalCards <= 1) return
+
+    const targetProgress = index / (totalCards - 1)
+    const scrollParent = section.closest('.overflow-y-auto') || window
+
+    if (scrollParent === window) {
+      const sectionTop = section.getBoundingClientRect().top + window.scrollY
+      const totalHeight = section.offsetHeight - window.innerHeight
+      const targetScroll = sectionTop + targetProgress * totalHeight
+      window.scrollTo({ top: targetScroll, behavior: 'smooth' })
+    } else {
+      const parentElem = scrollParent as HTMLElement
+      const sectionTop = section.offsetTop
+      const totalHeight = section.offsetHeight - parentElem.clientHeight
+      const targetScroll = sectionTop + targetProgress * totalHeight
+      parentElem.scrollTo({ top: targetScroll, behavior: 'smooth' })
+    }
+  }
+
+  const handlePrev = () => {
+    scrollToCategory(Math.max(0, activeIndex - 1))
+  }
+
+  const handleNext = () => {
+    scrollToCategory(Math.min(totalCards - 1, activeIndex + 1))
+  }
+
+  // Touch swipe support for mobile
+  const touchStartX = useRef(0)
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+  }
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const diffX = touchStartX.current - e.changedTouches[0].clientX
+    if (diffX > 50) handleNext()
+    else if (diffX < -50) handlePrev()
+  }
+
+  // Horizontal wheel swipe support
+  const onWheel = (e: React.WheelEvent) => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 25) {
+      if (e.deltaX > 0) handleNext()
+      else handlePrev()
+    }
+  }
+
+  return (
+    <section
+      ref={sectionRef}
+      className="relative bg-gradient-to-b from-white via-soft/30 to-white"
+      style={{ minHeight: isPreview ? 'auto' : `${Math.max(200, (totalCards + 1) * 45)}vh` }}
+    >
+      <div
+        ref={stickyRef}
+        onWheel={onWheel}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        className={cx(
+          'sticky top-0 h-screen max-h-screen overflow-hidden flex flex-col justify-between py-6 sm:py-8 lg:py-10 z-10',
+          isPreview && 'static h-auto max-h-none py-8'
+        )}
+      >
+        {/* Section Header with Controls */}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6 shrink-0">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-line/60">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-bold tracking-wider uppercase mb-2">
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-brand" />
+                </span>
+                Commercial Display Hardware
+              </div>
+              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-navy leading-[1.15]">
+                Everything your space needs to be seen
+              </h2>
+              <p className="mt-1.5 text-xs sm:text-sm text-ink-2 leading-relaxed">
+                Scroll vertically to glide through our architectural series, or use navigation controls to explore.
+              </p>
+            </div>
+
+            {/* Controls: Slide Counter, Prev/Next Arrows, View All */}
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Slide counter */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-line shadow-2xs text-xs font-mono">
+                <span className="font-bold text-navy">0{activeIndex + 1}</span>
+                <span className="text-ink-2/60">/</span>
+                <span className="text-ink-2 font-medium">0{totalCards}</span>
+              </div>
+
+              {/* Prev / Next buttons */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  disabled={activeIndex === 0}
+                  aria-label="Previous category"
+                  className="grid size-9 place-items-center rounded-full bg-white border border-line shadow-2xs hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer text-navy"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={activeIndex === totalCards - 1}
+                  aria-label="Next category"
+                  className="grid size-9 place-items-center rounded-full bg-white border border-line shadow-2xs hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer text-navy"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              </div>
+
+              <Btn
+                variant="secondary"
+                to="/shop"
+                iconRight
+                icon={<ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />}
+                className="hidden sm:inline-flex shadow-sm font-semibold text-xs sm:text-sm h-9 px-3.5"
+              >
+                All products ({products.length || 24})
+              </Btn>
+            </div>
+          </div>
+
+          {/* Category Filter Pills / Quick Nav */}
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {displayCats.map((cat, idx) => {
+                const isSelected = activeIndex === idx
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => scrollToCategory(idx)}
+                    className={cx(
+                      'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer',
+                      isSelected
+                        ? 'bg-navy text-white shadow-sm ring-1 ring-navy'
+                        : 'bg-white hover:bg-slate-100 text-ink-2 hover:text-ink border border-line shadow-2xs'
+                    )}
+                  >
+                    <span>{cat.name}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Scroll Guide Indicator */}
+            <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-ink-2 shrink-0">
+              <span className="size-1.5 rounded-full bg-brand animate-pulse" />
+              <span>Scroll down to glide horizontally</span>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mt-3 h-1 w-full bg-slate-200/80 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-brand via-amber-500 to-brand transition-all duration-100 ease-out rounded-full"
+              style={{ width: `${Math.max(progress * 100, 4)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Horizontal Sliding Track */}
+        <div className="w-full overflow-hidden flex-1 flex items-center">
+          <div
+            ref={trackRef}
+            className={cx(
+              'flex items-center gap-6 sm:gap-8 px-4 sm:px-8 lg:px-12 transition-transform duration-100 ease-out will-change-transform',
+              isPreview && 'overflow-x-auto max-w-full pb-4 scrollbar-none'
+            )}
+          >
+            {displayCats.map((cat, i) => {
+              const meta = CATEGORY_META[cat.id] || {
+                badge: '✦ Commercial Series',
+                tagline: cat.blurb || 'Engineered Display Solutions',
+                specs: ['Commercial Specifications', 'Durable Construction', 'Direct Support'],
+                startingPrice: undefined,
+                badgeBg: 'bg-white/15 text-white border-white/20',
+                gradient: 'from-brand/30 via-navy/20 to-transparent',
+              }
+
+              const catProducts = products.filter(
+                (p) =>
+                  p.cat === cat.id ||
+                  p.category_slug === cat.id ||
+                  p.category_id === cat.id ||
+                  p.cat?.toLowerCase() === cat.name?.toLowerCase() ||
+                  (p.cat && cat.id && p.cat.replace(/-/g, '') === cat.id.replace(/-/g, ''))
+              )
+              const productCount = catProducts.length
+              const validPrices = catProducts
+                .map((p) => p.price)
+                .filter((pr): pr is number => typeof pr === 'number' && pr > 0)
+              const dynamicMinPrice = validPrices.length > 0 ? Math.min(...validPrices) : null
+              const priceDisplay = meta.startingPrice || (dynamicMinPrice ? `From ₹${dynamicMinPrice.toLocaleString('en-IN')}` : 'Custom Sizing')
+
+              const isActive = activeIndex === i
+
+              return (
+                <Link
+                  key={cat.id}
+                  to={`/category/${cat.id}`}
+                  className={cx(
+                    'group relative flex flex-col justify-between overflow-hidden rounded-3xl bg-slate-900 border border-slate-800/80 shadow-2xl transition-all duration-500 shrink-0 select-none',
+                    'w-[84vw] max-w-[420px] sm:w-[480px] md:w-[540px] lg:w-[620px]',
+                    'h-[460px] sm:h-[490px] lg:h-[530px]',
+                    isActive
+                      ? 'ring-2 ring-brand/60 shadow-brand/20 scale-100'
+                      : 'ring-1 ring-white/10 opacity-90 scale-[0.98] hover:opacity-100 hover:scale-100'
+                  )}
+                >
+                  {/* Background Image with smooth zoom & brightness balance */}
+                  <img
+                    src={resolveAssetUrl(cat.img)}
+                    alt={cat.name}
+                    loading="lazy"
+                    className="absolute inset-0 size-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 group-hover:brightness-95"
+                    onError={(e) => {
+                      const t = e.currentTarget
+                      if (!t.dataset.fallback) {
+                        t.dataset.fallback = '1'
+                        t.src = resolveAssetUrl('/p/i-standee.jpg')
+                      }
+                    }}
+                  />
+
+                  {/* Top contrast gradient */}
+                  <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/70 via-black/30 to-transparent pointer-events-none" />
+
+                  {/* Deep lower gradient for crystal-clear readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 via-45% to-slate-950/15 pointer-events-none" />
+
+                  {/* Ambient category color glow on hover */}
+                  <div
+                    className={cx(
+                      'absolute inset-0 bg-gradient-to-tr opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none',
+                      meta.gradient
+                    )}
+                  />
+
+                  {/* Inset ring with subtle glow on hover */}
+                  <div className="absolute inset-0 rounded-3xl ring-1 ring-inset ring-white/10 group-hover:ring-brand/50 transition-colors duration-300 pointer-events-none" />
+
+                  {/* Top Deck: Floating Badges & Slide Number */}
+                  <div className="relative z-10 flex items-center justify-between gap-2 p-4 sm:p-6">
+                    <div className="flex items-center gap-2">
+                      <span className="grid size-8 place-items-center rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white font-mono text-xs font-bold shadow-xs">
+                        0{i + 1}
+                      </span>
+                      <span
+                        className={cx(
+                          'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold tracking-wide uppercase shadow-sm backdrop-blur-md border transition-all duration-300',
+                          meta.badgeBg
+                        )}
+                      >
+                        {meta.badge}
+                      </span>
+                    </div>
+
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white text-xs font-semibold shadow-xs">
+                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>{priceDisplay}</span>
+                    </span>
+                  </div>
+
+                  {/* Bottom Deck: Typography, Specs & Action Callout */}
+                  <div className="relative z-10 flex flex-col justify-end p-5 sm:p-7 md:p-8 text-white">
+                    {/* Category Title */}
+                    <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight group-hover:text-amber-200 transition-colors duration-300 drop-shadow-sm mb-2">
+                      {cat.name}
+                    </h3>
+
+                    {/* Blurb / Tagline */}
+                    <p className="text-white/85 font-normal leading-relaxed text-xs sm:text-sm lg:text-base line-clamp-2 max-w-xl mb-3.5">
+                      {cat.blurb || meta.tagline}
+                    </p>
+
+                    {/* Feature Spec Chips */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {meta.specs.slice(0, 3).map((spec, sIdx) => (
+                        <span
+                          key={sIdx}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/15 text-xs text-white/95 font-medium"
+                        >
+                          <span className="size-1 rounded-full bg-brand" />
+                          {spec}
+                        </span>
+                      ))}
+                      {productCount > 0 && (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-brand/25 backdrop-blur-md border border-brand/35 text-xs text-amber-200 font-semibold">
+                          {productCount} {productCount === 1 ? 'Model Available' : 'Models Available'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Action Row */}
+                    <div className="flex items-center justify-between gap-3 border-t border-white/15 pt-3.5 mt-1">
+                      <div className="flex items-center gap-2 text-xs text-white/70">
+                        <span className="font-medium text-white/90">
+                          {productCount > 0 ? `${productCount} products in catalogue` : 'Commercial solution'}
+                        </span>
+                      </div>
+
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-xs sm:text-sm font-bold shadow-md transition-all duration-300 group-hover:bg-brand group-hover:border-brand group-hover:text-white group-hover:shadow-brand/40">
+                        <span>Explore Series</span>
+                        <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Bottom Status bar inside sticky view */}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2 flex items-center justify-between text-xs text-ink-2 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-navy">Category Spotlight:</span>
+            <span className="text-ink font-medium">{displayCats[activeIndex]?.name}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline">Use mouse wheel, trackpad swipe or scroll down</span>
+            <div className="flex items-center gap-1 font-mono text-[11px]">
+              <span className="text-brand font-bold">{Math.round(progress * 100)}%</span>
+              <span>explored</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Non-sticky B2B Guarantee and Assurance Ribbon at the end of the section */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 border-t border-line/60">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+              <Ruler className="size-4" />
+            </span>
+            <div>
+              <p className="text-xs font-bold text-navy">Custom Fabrication</p>
+              <p className="text-[11px] text-ink-2 mt-0.5">Millimeter custom dimensions & artwork</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600">
+              <Truck className="size-4" />
+            </span>
+            <div>
+              <p className="text-xs font-bold text-navy">PAN-India Dispatch</p>
+              <p className="text-[11px] text-ink-2 mt-0.5">Wooden crated secure freight transit</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-blue-500/10 text-blue-600">
+              <Box className="size-4" />
+            </span>
+            <div>
+              <p className="text-xs font-bold text-navy">Complete Assemblies</p>
+              <p className="text-[11px] text-ink-2 mt-0.5">Adapters, mounts & HP prints included</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-purple-500/10 text-purple-600">
+              <ShieldCheck className="size-4" />
+            </span>
+            <div>
+              <p className="text-xs font-bold text-navy">Commercial Warranty</p>
+              <p className="text-[11px] text-ink-2 mt-0.5">1-Year hardware warranty & quote desk</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
 }
 
 export default function Home({ previewProps }: { previewProps?: HomePreviewProps } = {}) {
@@ -458,294 +918,11 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
       </section>
     ),
     cats: () => (
-      <section className="relative overflow-hidden bg-gradient-to-b from-white via-soft/30 to-white py-14 sm:py-24">
-        <Container>
-          {/* Section Header */}
-          <div className="mb-8 sm:mb-12">
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-line/60">
-              <div className="max-w-2xl">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-bold tracking-wider uppercase mb-3.5">
-                  <span className="relative flex size-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
-                    <span className="relative inline-flex size-2 rounded-full bg-brand" />
-                  </span>
-                  Commercial Display Hardware
-                </div>
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-navy leading-[1.15]">
-                  Everything your space needs to be seen
-                </h2>
-                <p className="mt-3 text-sm sm:text-base text-ink-2 leading-relaxed">
-                  Engineered for retail flagships, exhibition pavilions, corporate lobbies, and hospitality spaces. Choose an architectural series below or request custom fabrication.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 shrink-0">
-                <Btn
-                  variant="secondary"
-                  to="/shop"
-                  iconRight
-                  icon={<ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />}
-                  className="shadow-sm font-semibold text-sm"
-                >
-                  View all products ({products.length || 24})
-                </Btn>
-              </div>
-            </div>
-
-            {/* Category Quick-Nav Switcher Tabs */}
-            <div className="mt-6 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-              <button
-                type="button"
-                onClick={() => setActiveCatTab('all')}
-                className={cx(
-                  'shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer',
-                  activeCatTab === 'all'
-                    ? 'bg-navy text-white shadow-sm ring-1 ring-navy'
-                    : 'bg-white hover:bg-slate-100 text-ink-2 hover:text-ink border border-line shadow-2xs'
-                )}
-              >
-                <span>All Categories</span>
-                <span className={cx('px-1.5 py-0.5 rounded-full text-[10px]', activeCatTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-ink-2')}>
-                  {displayCats.length}
-                </span>
-              </button>
-
-              {displayCats.map((cat) => {
-                const isSelected = activeCatTab === cat.id
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setActiveCatTab(isSelected ? 'all' : cat.id)}
-                    className={cx(
-                      'shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer',
-                      isSelected
-                        ? 'bg-navy text-white shadow-sm ring-1 ring-navy'
-                        : 'bg-white hover:bg-slate-100 text-ink-2 hover:text-ink border border-line shadow-2xs'
-                    )}
-                  >
-                    <span>{cat.name}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            {activeCatTab !== 'all' && (
-              <div className="mt-3 flex items-center justify-between text-xs text-ink-2">
-                <span>Filtering by active category</span>
-                <button
-                  type="button"
-                  onClick={() => setActiveCatTab('all')}
-                  className="text-brand hover:underline font-semibold cursor-pointer"
-                >
-                  Show all categories
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Modern Architectural Bento Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-6">
-            {filteredCats.map((cat, i) => {
-              const meta = CATEGORY_META[cat.id] || {
-                badge: '✦ Commercial Series',
-                tagline: cat.blurb || 'Engineered Display Solutions',
-                specs: ['Commercial Specifications', 'Durable Construction', 'Direct Support'],
-                startingPrice: undefined,
-                badgeBg: 'bg-white/15 text-white border-white/20',
-                gradient: 'from-brand/30 via-navy/20 to-transparent',
-              }
-
-              // Find products belonging to this category
-              const catProducts = products.filter(
-                (p) =>
-                  p.cat === cat.id ||
-                  p.category_slug === cat.id ||
-                  p.category_id === cat.id ||
-                  p.cat?.toLowerCase() === cat.name?.toLowerCase() ||
-                  (p.cat && cat.id && p.cat.replace(/-/g, '') === cat.id.replace(/-/g, ''))
-              )
-              const productCount = catProducts.length
-              const validPrices = catProducts
-                .map((p) => p.price)
-                .filter((pr): pr is number => typeof pr === 'number' && pr > 0)
-              const dynamicMinPrice = validPrices.length > 0 ? Math.min(...validPrices) : null
-              const priceDisplay = meta.startingPrice || (dynamicMinPrice ? `From ₹${dynamicMinPrice.toLocaleString('en-IN')}` : 'Custom Sizing')
-              const isHero = activeCatTab === 'all' && i === 0
-
-              return (
-                <Link
-                  key={cat.id}
-                  to={`/category/${cat.id}`}
-                  className={cx(
-                    'group relative flex flex-col justify-between overflow-hidden rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800/80 shadow-md hover:shadow-2xl hover:shadow-brand/20 transition-all duration-500',
-                    activeCatTab === 'all'
-                      ? (i === 0
-                          ? 'md:col-span-2 lg:col-span-7 lg:row-span-2 min-h-[440px] sm:min-h-[500px] lg:min-h-[540px]'
-                          : i === 1 || i === 2
-                          ? 'md:col-span-1 lg:col-span-5 min-h-[230px] sm:min-h-[250px] lg:min-h-[258px]'
-                          : 'md:col-span-1 lg:col-span-4 min-h-[270px] sm:min-h-[290px] lg:min-h-[310px]')
-                      : filteredCats.length === 1
-                      ? 'col-span-full max-w-4xl mx-auto w-full min-h-[440px]'
-                      : 'md:col-span-1 lg:col-span-4 min-h-[280px]'
-                  )}
-                >
-                  {/* Background Image with smooth zoom & brightness balance */}
-                  <img
-                    src={resolveAssetUrl(cat.img)}
-                    alt={cat.name}
-                    loading="lazy"
-                    className="absolute inset-0 size-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 group-hover:brightness-95"
-                    onError={(e) => {
-                      const t = e.currentTarget
-                      if (!t.dataset.fallback) {
-                        t.dataset.fallback = '1'
-                        t.src = resolveAssetUrl('/p/i-standee.jpg')
-                      }
-                    }}
-                  />
-
-                  {/* Top contrast gradient */}
-                  <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
-
-                  {/* Deep lower gradient for crystal-clear readability */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/75 via-45% to-slate-950/15 pointer-events-none" />
-
-                  {/* Ambient category color glow on hover */}
-                  <div
-                    className={cx(
-                      'absolute inset-0 bg-gradient-to-tr opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none',
-                      meta.gradient
-                    )}
-                  />
-
-                  {/* Inset ring with subtle glow on hover */}
-                  <div className="absolute inset-0 rounded-2xl sm:rounded-3xl ring-1 ring-inset ring-white/10 group-hover:ring-brand/50 transition-colors duration-300 pointer-events-none" />
-
-                  {/* Top Deck: Floating Category Badges */}
-                  <div className="relative z-10 flex items-center justify-between gap-2 p-3.5 sm:p-5">
-                    <span
-                      className={cx(
-                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold tracking-wide uppercase shadow-sm backdrop-blur-md border transition-all duration-300',
-                        meta.badgeBg
-                      )}
-                    >
-                      {meta.badge}
-                    </span>
-
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-md border border-white/15 text-white/95 text-xs font-semibold shadow-xs">
-                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>{priceDisplay}</span>
-                    </span>
-                  </div>
-
-                  {/* Bottom Deck: Title, Specs & Action Callout */}
-                  <div className="relative z-10 flex flex-col justify-end p-4 sm:p-6 md:p-7 text-white">
-                    {/* Category Title */}
-                    <h3
-                      className={cx(
-                        'font-black tracking-tight leading-tight group-hover:text-amber-200 transition-colors duration-300 drop-shadow-sm',
-                        isHero
-                          ? 'text-2xl sm:text-4xl lg:text-5xl mb-2'
-                          : 'text-xl sm:text-2xl lg:text-3xl mb-1.5'
-                      )}
-                    >
-                      {cat.name}
-                    </h3>
-
-                    {/* Blurb / Tagline */}
-                    <p
-                      className={cx(
-                        'text-white/85 font-normal leading-relaxed text-xs sm:text-sm line-clamp-2 max-w-xl mb-3',
-                        isHero ? 'sm:text-base sm:line-clamp-3' : ''
-                      )}
-                    >
-                      {cat.blurb || meta.tagline}
-                    </p>
-
-                    {/* Feature Spec Chips (visible for hero card) */}
-                    {isHero && (
-                      <div className="hidden sm:flex flex-wrap gap-2 mb-4">
-                        {meta.specs.map((spec, sIdx) => (
-                          <span
-                            key={sIdx}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/15 text-xs text-white/95 font-medium"
-                          >
-                            <span className="size-1 rounded-full bg-brand" />
-                            {spec}
-                          </span>
-                        ))}
-                        {productCount > 0 && (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-brand/25 backdrop-blur-md border border-brand/35 text-xs text-amber-200 font-semibold">
-                            {productCount} {productCount === 1 ? 'Model Available' : 'Models Available'}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Action Row */}
-                    <div className="flex items-center justify-between gap-3 border-t border-white/15 pt-3.5 mt-1">
-                      <div className="flex items-center gap-2 text-xs text-white/70">
-                        <span className="font-medium text-white/90">
-                          {productCount > 0 ? `${productCount} products in catalogue` : 'Commercial solution'}
-                        </span>
-                      </div>
-
-                      <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-xs font-bold shadow-md transition-all duration-300 group-hover:bg-brand group-hover:border-brand group-hover:text-white group-hover:shadow-brand/40">
-                        <span>{isHero ? 'Explore Series' : 'View Range'}</span>
-                        <ArrowUpRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-
-          {/* Bottom Capabilities & Guarantee Ribbon */}
-          <div className="mt-8 sm:mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 border-t border-line/60 pt-6 sm:pt-8">
-            <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
-                <Ruler className="size-4" />
-              </span>
-              <div>
-                <p className="text-xs font-bold text-navy">Custom Fabrication</p>
-                <p className="text-[11px] text-ink-2 mt-0.5">Millimeter custom dimensions & artwork</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600">
-                <Truck className="size-4" />
-              </span>
-              <div>
-                <p className="text-xs font-bold text-navy">PAN-India Dispatch</p>
-                <p className="text-[11px] text-ink-2 mt-0.5">Wooden crated secure freight transit</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-blue-500/10 text-blue-600">
-                <Box className="size-4" />
-              </span>
-              <div>
-                <p className="text-xs font-bold text-navy">Complete Assemblies</p>
-                <p className="text-[11px] text-ink-2 mt-0.5">Adapters, mounts & HP prints included</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-xl bg-white p-3.5 shadow-2xs border border-line/70">
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-purple-500/10 text-purple-600">
-                <ShieldCheck className="size-4" />
-              </span>
-              <div>
-                <p className="text-xs font-bold text-navy">Commercial Warranty</p>
-                <p className="text-[11px] text-ink-2 mt-0.5">1-Year hardware warranty & quote desk</p>
-              </div>
-            </div>
-          </div>
-        </Container>
-      </section>
+      <HorizontalCategorySection
+        displayCats={displayCats}
+        products={products}
+        isPreview={Boolean(previewProps)}
+      />
     ),
     featured: () => (
       <section className="bg-soft py-12 sm:py-20">
