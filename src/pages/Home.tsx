@@ -730,11 +730,27 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
         const isVis = homeData?.sections_visibility ? homeData.sections_visibility[key] !== false : true
         list.push({ id: key, label: def?.label || key, on: isVis })
         seen.add(key)
+
+        // Ensure reels is placed right after featured if not explicitly positioned yet
+        if (key === 'featured' && !orderFromDb.includes('reels') && !seen.has('reels')) {
+          const reelsDef = DEFAULT_SECS.find((d) => d.id === 'reels')
+          if (reelsDef) {
+            const reelsVis = homeData?.sections_visibility?.reels !== false
+            list.push({ id: 'reels', label: reelsDef.label, on: reelsVis })
+            seen.add('reels')
+          }
+        }
       })
       DEFAULT_SECS.forEach((def) => {
         if (!seen.has(def.id)) {
           const isVis = homeData?.sections_visibility ? homeData.sections_visibility[def.id] !== false : true
-          list.push({ ...def, on: isVis })
+          const footerIdx = list.findIndex((s) => s.id === 'footer')
+          if (footerIdx !== -1) {
+            list.splice(footerIdx, 0, { ...def, on: isVis })
+          } else {
+            list.push({ ...def, on: isVis })
+          }
+          seen.add(def.id)
         }
       })
       return list
