@@ -1,18 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, type ReactNode } from 'react'
 import { ArrowRight, ArrowUpRight, Layers, Mail, MessageCircle, Play, Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X } from 'lucide-react'
-import { INDUSTRIES, FAQS as FALLBACK_FAQS } from '../data'
+import { INDUSTRIES, FAQS as FALLBACK_FAQS, CATS, byId } from '../data'
 import { Link, useApp, resolveAssetUrl } from '../store'
-import { Accordion, Btn, Container, ProductCard, SectionHead, Badge, InstagramIcon } from '../ui'
+import { Accordion, Btn, Container, ProductCard, SectionHead, Badge, InstagramIcon, cx } from '../ui'
 import { catalogueApi, normalizeProduct, type ApiHomepageData } from '../api'
 import StoreLoader from '../components/StoreLoader'
+import { Header, Footer } from '../Layout'
 
 const MEDIA = ['/p/ultraslim.jpg', '/p/frames.jpg', '/p/backlit.jpg', '/p/i-standee.jpg', '/p/gazebo.jpg']
 
-export default function Home() {
+export interface HomePreviewProps {
+  secs?: Array<{ id: string; on: boolean; label?: string }>
+  c?: any
+  selectedSection?: string
+  onSelectSection?: (id: string) => void
+  mode?: string
+}
+
+export default function Home({ previewProps }: { previewProps?: HomePreviewProps } = {}) {
   const { products, categories, isLoadingCatalogue } = useApp()
   const [homeData, setHomeData] = useState<ApiHomepageData | null>(null)
   const [faqs, setFaqs] = useState<[string, string][]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!previewProps)
   const [activeVideoModal, setActiveVideoModal] = useState<string | null>(null)
   const [activeInstagram, setActiveInstagram] = useState<{ embedUrl: string; cleanUrl: string; title: string } | null>(null)
 
@@ -50,24 +59,67 @@ export default function Home() {
 
   // User requirement:
   // "before the realtime data got loaded show the loading page dont show the defaut details on the website"
-  if (loading || (!homeData && isLoadingCatalogue)) {
+  if (!previewProps && (loading || (!homeData && isLoadingCatalogue))) {
     return <StoreLoader title="Loading DisplayDelight Displays" subtitle="Synchronizing real-time commercial catalogue & showroom..." />
   }
 
-  // Featured products from real DB
-  const featured = homeData?.featured_products && homeData.featured_products.length > 0
-    ? homeData.featured_products.map(normalizeProduct)
-    : products.slice(0, 6)
+  // Live or preview configuration values
+  const c = previewProps?.c
+  const activeHero = c?.hero || homeData?.hero
+  const activeAnnounce = c?.announce || homeData?.announce
+  const activeIntro = c?.intro || homeData?.intro
+  const activeVideo = c?.video || homeData?.video
+  const activeContact = c?.contact || homeData?.contact
 
-  // Categories from real DB
-  const displayCats = homeData?.categories && homeData.categories.length > 0
-    ? homeData.categories.map((c) => ({
-        id: c.slug,
-        name: c.name,
-        img: resolveAssetUrl(c.image_url || '/p/i-standee.jpg'),
-        blurb: c.description || '',
-      }))
-    : categories
+  // Featured products from preview config or real DB
+  const featured = useMemo(() => {
+    if (c?.featured && Array.isArray(c.featured) && c.featured.length > 0) {
+      return c.featured.map((k: string) => {
+        const found = products.find((p) => p.id === k || p.sku === k || p.slug === k) || byId(k)
+        return found ? normalizeProduct(found as any) : {
+          id: k,
+          name: k,
+          price: 2499,
+          img: resolveAssetUrl('/p/i-standee.jpg'),
+          cat: 'digital-signage',
+          sku: k,
+          sizes: ['Standard'],
+          status: 'Published',
+        }
+      })
+    }
+    return homeData?.featured_products && homeData.featured_products.length > 0
+      ? homeData.featured_products.map(normalizeProduct)
+      : products.slice(0, 6)
+  }, [c?.featured, homeData?.featured_products, products])
+
+  // Categories from preview config or real DB
+  const displayCats = useMemo(() => {
+    if (c?.cats && Array.isArray(c.cats) && c.cats.length > 0) {
+      return c.cats.map((k: string) => {
+        const found = categories.find((cat) => cat.id === k || cat.name.toLowerCase() === k.toLowerCase()) || CATS.find((cat) => cat.id === k)
+        return found ? {
+          id: found.id,
+          name: found.name,
+          img: resolveAssetUrl(found.img),
+          blurb: found.blurb || '',
+        } : {
+          id: k,
+          name: k,
+          img: resolveAssetUrl('/p/i-standee.jpg'),
+          blurb: '',
+        }
+      })
+    }
+    return homeData?.categories && homeData.categories.length > 0
+      ? homeData.categories.map((cat) => ({
+          id: cat.slug,
+          name: cat.name,
+          img: resolveAssetUrl(cat.image_url || '/p/i-standee.jpg'),
+          blurb: cat.description || '',
+        }))
+      : categories
+  }, [c?.cats, homeData?.categories, categories])
 
   // Approved testimonials from DB
   const testimonials = homeData?.testimonials || []
@@ -75,9 +127,17 @@ export default function Home() {
   const clientLogos = homeData?.client_logos || []
 
   // Dynamic industries
-  const industriesList = homeData?.industries && homeData.industries.length > 0
-    ? homeData.industries.map((ind) => [ind.name, ind.description, resolveAssetUrl(ind.image_url)])
-    : INDUSTRIES.map(([t, d, img]) => [t, d, resolveAssetUrl(img)])
+  const industriesList = useMemo(() => {
+    if (c?.industries && Array.isArray(c.industries) && c.industries.length > 0) {
+      return c.industries.map((i: number) => {
+        const ind = INDUSTRIES[i] || ['Commercial Displays', 'Engineered for public spaces.', '/p/i-standee.jpg']
+        return [ind[0], ind[1], resolveAssetUrl(ind[2])]
+      })
+    }
+    return homeData?.industries && homeData.industries.length > 0
+      ? homeData.industries.map((ind) => [ind.name, ind.description, resolveAssetUrl(ind.image_url)])
+      : INDUSTRIES.map(([t, d, img]) => [t, d, resolveAssetUrl(img)])
+  }, [c?.industries, homeData?.industries])
 
   // Dynamic gallery
   const galleryItems = homeData?.gallery && homeData.gallery.length > 0
@@ -86,227 +146,295 @@ export default function Home() {
 
   // Dynamic benefits
   const benefitIcons = [Wand2, Ruler, Truck, MessageCircle]
-  const benefitsList = homeData?.benefits?.items && homeData.benefits.items.length > 0
-    ? homeData.benefits.items
-    : [
-        { t: 'Made to your artwork', d: 'Upload a logo, set text, font and colour on customizable products and preview before you order.' },
-        { t: 'Right size, right mount', d: 'Wall mount, floor stand or tabletop — pick from the sizes each product supports.' },
-        { t: 'Portable when you need it', d: 'Foldable roll-ups, tents and tripod stands for events and outdoor branding.' },
-        { t: 'Quote when it is bigger', d: 'Need a custom shape or larger quantity? Request a quote from any product page.' },
-      ]
+  const benefitsList = useMemo(() => {
+    if (c?.benefits && Array.isArray(c.benefits) && c.benefits.length > 0) {
+      return c.benefits.map((b: any) => ({
+        t: b.t || 'Benefit title',
+        d: b.d || 'Benefit description',
+      }))
+    }
+    return homeData?.benefits?.items && homeData.benefits.items.length > 0
+      ? homeData.benefits.items
+      : [
+          { t: 'Made to your artwork', d: 'Upload a logo, set text, font and colour on customizable products and preview before you order.' },
+          { t: 'Right size, right mount', d: 'Wall mount, floor stand or tabletop — pick from the sizes each product supports.' },
+          { t: 'Portable when you need it', d: 'Foldable roll-ups, tents and tripod stands for events and outdoor branding.' },
+          { t: 'Quote when it is bigger', d: 'Need a custom shape or larger quantity? Request a quote from any product page.' },
+        ]
+  }, [c?.benefits, homeData?.benefits?.items])
 
-  const isVisible = (key: string) => homeData?.sections_visibility?.[key] !== false
+  const activeFaqs = useMemo(() => {
+    if (c?.tf?.faqs && Array.isArray(c.tf.faqs) && c.tf.faqs.length > 0) {
+      return c.tf.faqs.map((i: number) => {
+        const item = faqs[i] || FALLBACK_FAQS[i]
+        return item || ['Frequently Asked Question', 'Answer details will appear here.']
+      })
+    }
+    return faqs.length > 0 ? faqs : (FALLBACK_FAQS as any)
+  }, [c?.tf?.faqs, faqs])
 
-  return (
-    <>
-      {/* ANNOUNCEMENT BANNER */}
-      {isVisible('announce') && homeData?.announce?.text && (
+  const defaultSecs: Array<{ id: string; label: string }> = [
+    { id: 'announce', label: 'Announcement bar' },
+    { id: 'header', label: 'Header & logo' },
+    { id: 'hero', label: 'Hero banner' },
+    { id: 'cats', label: 'Category grid' },
+    { id: 'featured', label: 'Featured products' },
+    { id: 'intro', label: 'Introduction / story' },
+    { id: 'industries', label: 'Industries' },
+    { id: 'logos', label: 'Client logos' },
+    { id: 'video', label: 'Video spotlight' },
+    { id: 'benefits', label: 'Why choose us (benefits)' },
+    { id: 'gallery', label: 'Gallery & media' },
+    { id: 'tf', label: 'FAQs & reviews' },
+    { id: 'contact', label: 'Call to action banner' },
+    { id: 'footer', label: 'Footer & policies' },
+  ]
+
+  const activeSecs = previewProps?.secs || defaultSecs.map((s) => ({ ...s, on: true }))
+
+  const isVisible = (key: string) => {
+    if (previewProps?.secs) {
+      const found = previewProps.secs.find((s) => s.id === key)
+      return found ? Boolean(found.on) : true
+    }
+    return homeData?.sections_visibility?.[key] !== false
+  }
+
+  const renderSectionWrapper = (id: string, content: ReactNode, label: string) => {
+    if (!previewProps) return <div key={id}>{content}</div>
+    const isSelected = previewProps.selectedSection === id
+    return (
+      <div
+        key={id}
+        onClick={(e) => {
+          e.stopPropagation()
+          previewProps.onSelectSection?.(id)
+        }}
+        className={cx(
+          'relative transition-all duration-150',
+          previewProps.onSelectSection && 'cursor-pointer',
+          isSelected
+            ? 'ring-4 ring-brand ring-offset-2 z-20 shadow-xl'
+            : 'hover:ring-2 hover:ring-brand/40'
+        )}
+      >
+        {isSelected && (
+          <div className="absolute top-3 left-3 z-30 flex items-center gap-2 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white shadow-lg animate-pop">
+            <span className="size-2 rounded-full bg-white animate-pulse" />
+            <span>Editing Section: {label}</span>
+          </div>
+        )}
+        {content}
+      </div>
+    )
+  }
+
+  const sectionRenderers: Record<string, () => ReactNode> = {
+    announce: () => (
+      activeAnnounce?.text ? (
         <div className="bg-brand px-4 py-2 text-center text-xs font-semibold text-white shadow-inner">
-          <Link to={homeData.announce.link || '/shop'} className="inline-flex items-center gap-1.5 hover:underline">
-            <span>📢 {homeData.announce.text}</span>
+          <Link to={activeAnnounce.link || '/shop'} className="inline-flex items-center gap-1.5 hover:underline">
+            <span>📢 {activeAnnounce.text}</span>
             <ArrowRight className="size-3.5" />
           </Link>
         </div>
-      )}
-
-      {/* HERO */}
-      {isVisible('hero') && (
-        <section className="relative overflow-hidden bg-navy text-white">
-          <div className="pointer-events-none absolute -right-40 -top-40 size-[560px] rounded-full bg-brand/25 blur-[120px]" />
-          <Container className="relative grid items-center gap-10 py-12 lg:grid-cols-[1.02fr_1fr] lg:py-20">
-            <div>
-              <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[.16em] text-[#ffb597]">
-                <span className="size-1.5 rounded-full bg-brand" />Digital signage for business
-              </p>
-              <h1 className="hero-heading font-bold uppercase font-display">
-                {homeData?.hero?.headline || (
-                  <>Light up.<br />Stand out.<br /><span className="text-brand">Sell more.</span></>
-                )}
-              </h1>
-              <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/75 sm:mt-6 sm:text-base md:text-lg">
-                {homeData?.hero?.sub || 'Digital standees, illuminated light boxes, roll-ups and customised signage — powered directly by our live commercial catalogue.'}
-              </p>
-              <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
-                <Btn size="lg" className="w-full sm:w-auto" to={homeData?.hero?.c1to || '/shop'} iconRight icon={<ArrowRight className="size-5" />}>{homeData?.hero?.c1 || 'Shop products'}</Btn>
-                <Btn size="lg" className="w-full sm:w-auto" variant="ghostLight" to={homeData?.hero?.c2to || '/quote'}>{homeData?.hero?.c2 || 'Request a quote'}</Btn>
-              </div>
-              <ul className="mt-8 grid max-w-xl grid-cols-1 gap-3.5 border-t border-white/15 pt-5 text-sm sm:grid-cols-3 sm:mt-10 sm:gap-4 sm:pt-6">
-                {[[Wand2, 'Customizable', 'Your artwork & size'], [Layers, 'Floor to table', 'Standees & boxes'], [Mail, 'Quote support', 'Straight from the page']].map(([I, t, s]: any) => (
-                  <li key={t} className="flex items-center gap-3 sm:block">
-                    <I className="size-5 text-brand shrink-0" />
-                    <div>
-                      <p className="font-semibold text-sm sm:mt-2">{t}</p>
-                      <p className="text-xs text-white/60">{s}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+      ) : null
+    ),
+    header: () => (
+      previewProps ? (
+        <div className="border-b border-line bg-white/95 backdrop-blur pointer-events-none">
+          <Header />
+        </div>
+      ) : null
+    ),
+    hero: () => (
+      <section className="relative overflow-hidden bg-navy text-white">
+        <div className="pointer-events-none absolute -right-40 -top-40 size-[560px] rounded-full bg-brand/25 blur-[120px]" />
+        <Container className="relative grid items-center gap-10 py-12 lg:grid-cols-[1.02fr_1fr] lg:py-20">
+          <div>
+            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[.16em] text-[#ffb597]">
+              <span className="size-1.5 rounded-full bg-brand" />Digital signage for business
+            </p>
+            <h1 className="hero-heading font-bold uppercase font-display">
+              {activeHero?.headline || (
+                <>Light up.<br />Stand out.<br /><span className="text-brand">Sell more.</span></>
+              )}
+            </h1>
+            <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/75 sm:mt-6 sm:text-base md:text-lg">
+              {activeHero?.sub || 'Digital standees, illuminated light boxes, roll-ups and customised signage — powered directly by our live commercial catalogue.'}
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
+              <Btn size="lg" className="w-full sm:w-auto" to={activeHero?.c1to || '/shop'} iconRight icon={<ArrowRight className="size-5" />}>{activeHero?.c1 || 'Shop products'}</Btn>
+              <Btn size="lg" className="w-full sm:w-auto" variant="ghostLight" to={activeHero?.c2to || '/quote'}>{activeHero?.c2 || 'Request a quote'}</Btn>
             </div>
-            <div className="relative">
-              <div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-pop">
+            <ul className="mt-8 grid max-w-xl grid-cols-1 gap-3.5 border-t border-white/15 pt-5 text-sm sm:grid-cols-3 sm:mt-10 sm:gap-4 sm:pt-6">
+              {[[Wand2, 'Customizable', 'Your artwork & size'], [Layers, 'Floor to table', 'Standees & boxes'], [Mail, 'Quote support', 'Straight from the page']].map(([I, t, s]: any) => (
+                <li key={t} className="flex items-center gap-3 sm:block">
+                  <I className="size-5 text-brand shrink-0" />
+                  <div>
+                    <p className="font-semibold text-sm sm:mt-2">{t}</p>
+                    <p className="text-xs text-white/60">{s}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="relative">
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-pop">
+              <img
+                src={resolveAssetUrl(activeHero?.img || '/p/hero.jpg')}
+                alt="DisplayDelight digital standees, easel frames and light boxes in a showroom"
+                className="aspect-[4/3.6] w-full object-cover object-[78%_50%]"
+                onError={(e) => {
+                  const t = e.currentTarget
+                  if (!t.dataset.fallback) {
+                    t.dataset.fallback = '1'
+                    t.src = resolveAssetUrl('/p/hero.jpg')
+                  }
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-navy/60 via-transparent to-transparent" />
+            </div>
+            {featured[0] && (
+              <Link to={`/product/${featured[0].id}`} className="group absolute left-3 sm:-left-6 bottom-4 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-xl bg-white p-2.5 pr-3.5 text-ink shadow-pop transition hover:-translate-y-0.5 sm:max-w-none">
+                <img src={featured[0].img} alt="" className="size-11 shrink-0 rounded-lg bg-[#f3f1ee] object-cover mix-blend-multiply sm:size-16" />
+                <span className="min-w-0">
+                  <span className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-brand">Featured Display</span>
+                  <span className="block font-semibold truncate max-w-[140px] xs:max-w-[200px] sm:max-w-none text-xs sm:text-sm">{featured[0].name}</span>
+                  <span className="block text-[11px] sm:text-xs text-ink-2">{featured[0].sku} · In stock</span>
+                </span>
+                <ArrowUpRight className="size-4 shrink-0 text-ink-2 transition group-hover:text-brand" />
+              </Link>
+            )}
+            {featured[1] && (
+              <Link to={`/product/${featured[1].id}`} className="absolute -right-2 top-6 hidden items-center gap-2 rounded-xl bg-navy-2/90 p-2 pr-3.5 text-white shadow-pop ring-1 ring-white/15 backdrop-blur transition hover:-translate-y-0.5 sm:flex">
+                <img src={featured[1].img} alt="" className="size-12 rounded-lg object-cover" />
+                <span className="text-xs">
+                  <span className="block font-semibold">{featured[1].name}</span>
+                  <span className="text-white/60">Live Catalogue</span>
+                </span>
+              </Link>
+            )}
+          </div>
+        </Container>
+      </section>
+    ),
+    cats: () => (
+      <section className="py-12 sm:py-20">
+        <Container>
+          <SectionHead eyebrow="Shop by category" title="Everything your space needs to be seen" action={<Btn variant="tertiary" to="/shop" iconRight icon={<ArrowRight className="size-4" />}>All products</Btn>} />
+          <div className="cat-bento grid auto-rows-[160px] grid-cols-2 gap-2.5 sm:auto-rows-[220px] sm:gap-4 lg:grid-cols-4 lg:auto-rows-[230px]">
+            {displayCats.map((cat, i) => (
+              <Link key={cat.id} to={`/category/${cat.id}`} className={`group relative overflow-hidden rounded-xl bg-[#e9e6e1] ${i === 0 ? 'col-span-2 row-span-2' : i === 3 ? 'lg:col-span-2' : ''}`}>
                 <img
-                  src={resolveAssetUrl(homeData?.hero?.img || '/p/hero.jpg')}
-                  alt="DisplayDelight digital standees, easel frames and light boxes in a showroom"
-                  className="aspect-[4/3.6] w-full object-cover object-[78%_50%]"
+                  src={resolveAssetUrl(cat.img)}
+                  alt={cat.name}
+                  loading="lazy"
+                  className="size-full object-cover transition duration-700 group-hover:scale-105"
                   onError={(e) => {
                     const t = e.currentTarget
                     if (!t.dataset.fallback) {
                       t.dataset.fallback = '1'
-                      t.src = resolveAssetUrl('/p/hero.jpg')
+                      t.src = resolveAssetUrl('/p/i-standee.jpg')
                     }
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-navy/60 via-transparent to-transparent" />
-              </div>
-              {featured[0] && (
-                <Link to={`/product/${featured[0].id}`} className="group absolute left-3 sm:-left-6 bottom-4 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-xl bg-white p-2.5 pr-3.5 text-ink shadow-pop transition hover:-translate-y-0.5 sm:max-w-none">
-                  <img src={featured[0].img} alt="" className="size-11 shrink-0 rounded-lg bg-[#f3f1ee] object-cover mix-blend-multiply sm:size-16" />
-                  <span className="min-w-0">
-                    <span className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-brand">Featured Display</span>
-                    <span className="block font-semibold truncate max-w-[140px] xs:max-w-[200px] sm:max-w-none text-xs sm:text-sm">{featured[0].name}</span>
-                    <span className="block text-[11px] sm:text-xs text-ink-2">{featured[0].sku} · In stock</span>
-                  </span>
-                  <ArrowUpRight className="size-4 shrink-0 text-ink-2 transition group-hover:text-brand" />
-                </Link>
-              )}
-              {featured[1] && (
-                <Link to={`/product/${featured[1].id}`} className="absolute -right-2 top-6 hidden items-center gap-2 rounded-xl bg-navy-2/90 p-2 pr-3.5 text-white shadow-pop ring-1 ring-white/15 backdrop-blur transition hover:-translate-y-0.5 sm:flex">
-                  <img src={featured[1].img} alt="" className="size-12 rounded-lg object-cover" />
-                  <span className="text-xs">
-                    <span className="block font-semibold">{featured[1].name}</span>
-                    <span className="text-white/60">Live Catalogue</span>
-                  </span>
-                </Link>
-              )}
-            </div>
-          </Container>
-        </section>
-      )}
-
-      {/* CATEGORIES — bento */}
-      {isVisible('cats') && (
-        <section className="py-12 sm:py-20">
-          <Container>
-            <SectionHead eyebrow="Shop by category" title="Everything your space needs to be seen" action={<Btn variant="tertiary" to="/shop" iconRight icon={<ArrowRight className="size-4" />}>All products</Btn>} />
-            <div className="cat-bento grid auto-rows-[160px] grid-cols-2 gap-2.5 sm:auto-rows-[220px] sm:gap-4 lg:grid-cols-4 lg:auto-rows-[230px]">
-              {displayCats.map((c, i) => (
-                <Link key={c.id} to={`/category/${c.id}`} className={`group relative overflow-hidden rounded-xl bg-[#e9e6e1] ${i === 0 ? 'col-span-2 row-span-2' : i === 3 ? 'lg:col-span-2' : ''}`}>
-                  <img
-                    src={resolveAssetUrl(c.img)}
-                    alt={c.name}
-                    loading="lazy"
-                    className="size-full object-cover transition duration-700 group-hover:scale-105"
-                    onError={(e) => {
-                      const t = e.currentTarget
-                      if (!t.dataset.fallback) {
-                        t.dataset.fallback = '1'
-                        t.src = resolveAssetUrl('/p/i-standee.jpg')
-                      }
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/10 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5 text-white sm:gap-3 sm:p-4 md:p-5">
-                    <div>
-                      <h3 className={`font-bold leading-none ${i === 0 ? 'text-xl sm:text-4xl md:text-5xl' : 'text-sm xs:text-base sm:text-2xl md:text-3xl'}`}>{c.name}</h3>
-                      {(i === 0 || i === 3) && <p className="mt-1 line-clamp-2 max-w-xs text-xs text-white/80 sm:mt-2 sm:text-sm">{c.blurb}</p>}
-                    </div>
-                    <span className="grid size-7 shrink-0 place-items-center rounded-full bg-white/15 backdrop-blur transition group-hover:bg-brand sm:size-10"><ArrowUpRight className="size-3.5 sm:size-5" /></span>
+                <div className="absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/10 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5 text-white sm:gap-3 sm:p-4 md:p-5">
+                  <div>
+                    <h3 className={`font-bold leading-none ${i === 0 ? 'text-xl sm:text-4xl md:text-5xl' : 'text-sm xs:text-base sm:text-2xl md:text-3xl'}`}>{cat.name}</h3>
+                    {(i === 0 || i === 3) && <p className="mt-1 line-clamp-2 max-w-xs text-xs text-white/80 sm:mt-2 sm:text-sm">{cat.blurb}</p>}
                   </div>
-                </Link>
-              ))}
-            </div>
-          </Container>
-        </section>
-      )}
-
-      {/* FEATURED */}
-      {isVisible('featured') && (
-        <section className="bg-soft py-12 sm:py-20">
-          <Container>
-            <SectionHead eyebrow="Featured products" title="Live Database Catalogue" action={<Btn variant="secondary" to="/shop">View all products</Btn>} />
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {featured.map((p) => <ProductCard key={p.id} p={p} />)}
-            </div>
-            <p className="mt-6 text-xs text-ink-2">Synchronized in real-time with the production database catalogue.</p>
-          </Container>
-        </section>
-      )}
-
-      {/* COMPANY / INTRO */}
-      {isVisible('intro') && (
-        <section className="py-12 sm:py-20">
-          <Container className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
-            <div className="relative">
-              <img
-                src={resolveAssetUrl(homeData?.intro?.img || '/p/backlit.jpg')}
-                alt="Commercial signage solutions"
-                className="aspect-[5/4] w-full rounded-2xl object-cover"
-                onError={(e) => {
-                  const t = e.currentTarget
-                  if (!t.dataset.fallback) {
-                    t.dataset.fallback = '1'
-                    t.src = resolveAssetUrl('/p/backlit.jpg')
-                  }
-                }}
-              />
-              <img
-                src={resolveAssetUrl('/p/t-led.jpg')}
-                alt="T LED light box range"
-                className="absolute -bottom-8 right-4 hidden w-2/5 rounded-xl border-4 border-white object-cover shadow-pop sm:block"
-                onError={(e) => {
-                  const t = e.currentTarget
-                  if (!t.dataset.fallback) {
-                    t.dataset.fallback = '1'
-                    t.src = resolveAssetUrl('/p/t-led.jpg')
-                  }
-                }}
-              />
-            </div>
-            <div>
-              <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[.18em] text-brand"><span className="h-0.5 w-6 bg-brand" />About DisplayDelight</p>
-              <h2 className="intro-heading font-bold font-display">{homeData?.intro?.title || 'All business solutions, one display partner.'}</h2>
-              <p className="mt-4 text-base leading-relaxed text-ink-2 sm:mt-5 sm:text-[17px]">{homeData?.intro?.text || 'We supply digital standees, illuminated and acrylic LED displays, tabletop signage, roll-ups, fabric displays and customised branding products — so cafés, showrooms, offices and event teams can put their message in front of customers.'}</p>
-              <ul className="mt-5 grid gap-2.5 sm:mt-6 sm:grid-cols-2">
-                {['Digital standees: I, A and tabletop types', 'LED light boxes & clip-on frames', 'Roll-ups, fabric displays, gazebo tents', 'Custom print, shape and size on supported products'].map((t) => <li key={t} className="flex items-start gap-2.5 text-sm font-medium"><Sparkles className="mt-0.5 size-4 shrink-0 text-brand" />{t}</li>)}
-              </ul>
-              <Btn className="mt-7 sm:mt-8" variant="dark" to="/about" iconRight icon={<ArrowRight className="size-4" />}>Learn more about us</Btn>
-            </div>
-          </Container>
-        </section>
-      )}
-
-      {/* INDUSTRIES */}
-      {isVisible('industries') && (
-        <section className="bg-navy py-20 text-white">
-          <Container>
-            <SectionHead light eyebrow="Industries & use cases" title="Know your business, not the product name?" />
-            <div className="hide-scroll -mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0">
-              {industriesList.map(([t, d, img]) => (
-                <Link key={t} to="/shop" className="group relative w-64 shrink-0 snap-start overflow-hidden rounded-xl bg-navy-2 lg:w-auto">
-                  <img
-                    src={resolveAssetUrl(img)}
-                    alt=""
-                    loading="lazy"
-                    className="aspect-[4/4.4] w-full object-cover opacity-80 transition duration-500 group-hover:scale-105 group-hover:opacity-100"
-                    onError={(e) => {
-                      const t = e.currentTarget
-                      if (!t.dataset.fallback) {
-                        t.dataset.fallback = '1'
-                        t.src = resolveAssetUrl('/p/i-standee.jpg')
-                      }
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/30 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 p-4"><h3 className="text-2xl font-bold leading-tight">{t}</h3><p className="mt-1 text-[13px] text-white/70">{d}</p></div>
-                </Link>
-              ))}
-            </div>
-          </Container>
-        </section>
-      )}
-
-      {/* REAL DATABASE CLIENTS */}
-      {isVisible('logos') && clientLogos.length > 0 && (
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-white/15 backdrop-blur transition group-hover:bg-brand sm:size-10"><ArrowUpRight className="size-3.5 sm:size-5" /></span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Container>
+      </section>
+    ),
+    featured: () => (
+      <section className="bg-soft py-12 sm:py-20">
+        <Container>
+          <SectionHead eyebrow="Featured products" title="Live Database Catalogue" action={<Btn variant="secondary" to="/shop">View all products</Btn>} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.map((p) => <ProductCard key={p.id} p={p} />)}
+          </div>
+          <p className="mt-6 text-xs text-ink-2">Synchronized in real-time with the production database catalogue.</p>
+        </Container>
+      </section>
+    ),
+    intro: () => (
+      <section className="py-12 sm:py-20">
+        <Container className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+          <div className="relative">
+            <img
+              src={resolveAssetUrl(activeIntro?.img || '/p/backlit.jpg')}
+              alt="Commercial signage solutions"
+              className="aspect-[5/4] w-full rounded-2xl object-cover"
+              onError={(e) => {
+                const t = e.currentTarget
+                if (!t.dataset.fallback) {
+                  t.dataset.fallback = '1'
+                  t.src = resolveAssetUrl('/p/backlit.jpg')
+                }
+              }}
+            />
+            <img
+              src={resolveAssetUrl('/p/t-led.jpg')}
+              alt="T LED light box range"
+              className="absolute -bottom-8 right-4 hidden w-2/5 rounded-xl border-4 border-white object-cover shadow-pop sm:block"
+              onError={(e) => {
+                const t = e.currentTarget
+                if (!t.dataset.fallback) {
+                  t.dataset.fallback = '1'
+                  t.src = resolveAssetUrl('/p/t-led.jpg')
+                }
+              }}
+            />
+          </div>
+          <div>
+            <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[.18em] text-brand"><span className="h-0.5 w-6 bg-brand" />About DisplayDelight</p>
+            <h2 className="intro-heading font-bold font-display">{activeIntro?.title || 'All business solutions, one display partner.'}</h2>
+            <p className="mt-4 text-base leading-relaxed text-ink-2 sm:mt-5 sm:text-[17px]">{activeIntro?.text || 'We supply digital standees, illuminated and acrylic LED displays, tabletop signage, roll-ups, fabric displays and customised branding products — so cafés, showrooms, offices and event teams can put their message in front of customers.'}</p>
+            <ul className="mt-5 grid gap-2.5 sm:mt-6 sm:grid-cols-2">
+              {['Digital standees: I, A and tabletop types', 'LED light boxes & clip-on frames', 'Roll-ups, fabric displays, gazebo tents', 'Custom print, shape and size on supported products'].map((t) => <li key={t} className="flex items-start gap-2.5 text-sm font-medium"><Sparkles className="mt-0.5 size-4 shrink-0 text-brand" />{t}</li>)}
+            </ul>
+            <Btn className="mt-7 sm:mt-8" variant="dark" to="/about" iconRight icon={<ArrowRight className="size-4" />}>Learn more about us</Btn>
+          </div>
+        </Container>
+      </section>
+    ),
+    industries: () => (
+      <section className="bg-navy py-20 text-white">
+        <Container>
+          <SectionHead light eyebrow="Industries & use cases" title="Know your business, not the product name?" />
+          <div className="hide-scroll -mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0">
+            {industriesList.map(([t, d, img]) => (
+              <Link key={t} to="/shop" className="group relative w-64 shrink-0 snap-start overflow-hidden rounded-xl bg-navy-2 lg:w-auto">
+                <img
+                  src={resolveAssetUrl(img)}
+                  alt=""
+                  loading="lazy"
+                  className="aspect-[4/4.4] w-full object-cover opacity-80 transition duration-500 group-hover:scale-105 group-hover:opacity-100"
+                  onError={(e) => {
+                    const t = e.currentTarget
+                    if (!t.dataset.fallback) {
+                      t.dataset.fallback = '1'
+                      t.src = resolveAssetUrl('/p/i-standee.jpg')
+                    }
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/30 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-4"><h3 className="text-2xl font-bold leading-tight">{t}</h3><p className="mt-1 text-[13px] text-white/70">{d}</p></div>
+              </Link>
+            ))}
+          </div>
+        </Container>
+      </section>
+    ),
+    logos: () => (
+      clientLogos.length > 0 ? (
         <section className="py-16">
           <Container>
             <p className="mb-6 text-center text-xs font-bold uppercase tracking-[.18em] text-ink-2">Trusted by Leading Enterprises & Brands</p>
@@ -329,155 +457,123 @@ export default function Home() {
             </div>
           </Container>
         </section>
-      )}
-
-      {/* VIDEO */}
-      {isVisible('video') && (
-        <section className="bg-soft py-20">
+      ) : (
+        <section className="py-10 border-y border-line/60 bg-soft/40">
           <Container>
-            <SectionHead eyebrow="Product videos" title={homeData?.video?.title || 'See the displays in action'} action={<Btn variant="secondary" to="/shop">Explore catalogue</Btn>} />
-            <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-              <div
-                onClick={() => {
-                  if (homeData?.video?.url) {
-                    setActiveVideoModal(homeData.video.url)
+            <p className="mb-3 text-center text-xs font-bold uppercase tracking-[.18em] text-ink-2">Trusted by Leading Enterprises</p>
+            <p className="text-center text-xs text-ink-2">Client logos managed via Client Logos admin will display here.</p>
+          </Container>
+        </section>
+      )
+    ),
+    video: () => (
+      <section className="bg-soft py-20">
+        <Container>
+          <SectionHead eyebrow="Product videos" title={activeVideo?.title || 'See the displays in action'} action={<Btn variant="secondary" to="/shop">Explore catalogue</Btn>} />
+          <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
+            <div
+              onClick={() => {
+                if (activeVideo?.url) {
+                  setActiveVideoModal(activeVideo.url)
+                }
+              }}
+              className="group relative cursor-pointer overflow-hidden rounded-2xl bg-navy"
+            >
+              <img
+                src={resolveAssetUrl(activeVideo?.poster || featured[0]?.img || '/p/i-standee.jpg')}
+                alt=""
+                className="aspect-video w-full object-cover opacity-80 transition duration-700 group-hover:scale-105"
+                onError={(e) => {
+                  const t = e.currentTarget
+                  if (!t.dataset.fallback) {
+                    t.dataset.fallback = '1'
+                    t.src = resolveAssetUrl('/p/i-standee.jpg')
                   }
                 }}
-                className="group relative cursor-pointer overflow-hidden rounded-2xl bg-navy"
-              >
-                <img
-                  src={resolveAssetUrl(homeData?.video?.poster || featured[0]?.img || '/p/i-standee.jpg')}
-                  alt=""
-                  className="aspect-video w-full object-cover opacity-80 transition duration-700 group-hover:scale-105"
-                  onError={(e) => {
-                    const t = e.currentTarget
-                    if (!t.dataset.fallback) {
-                      t.dataset.fallback = '1'
-                      t.src = resolveAssetUrl('/p/i-standee.jpg')
-                    }
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-navy/90 to-transparent" />
-                <span className="absolute left-1/2 top-1/2 grid size-20 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-brand text-white shadow-pop transition group-hover:scale-110"><Play className="ml-1 size-8" fill="currentColor" /></span>
-                <div className="absolute inset-x-0 bottom-0 p-6 text-white"><Badge tone="brand">Video tour</Badge><h3 className="mt-2 text-3xl font-bold">{homeData?.video?.title || featured[0]?.name || 'Commercial Video Wall'}</h3><p className="mt-1 max-w-md text-sm text-white/70">{featured[0]?.blurb || 'Ultra-high definition commercial display in retail and enterprise environments.'}</p></div>
-              </div>
-              <div className="flex flex-col gap-5">
-                {featured.slice(1, 3).map((fp) => (
-                  <Link key={fp.id} to={`/product/${fp.id}`} className="group flex flex-1 overflow-hidden rounded-xl border border-line bg-white">
-                    <span className="relative w-2/5 shrink-0 overflow-hidden bg-navy">
-                      <img
-                        src={resolveAssetUrl(fp.img)}
-                        alt=""
-                        className="size-full object-cover opacity-85 transition group-hover:scale-105"
-                        onError={(e) => {
-                          const t = e.currentTarget
-                          if (!t.dataset.fallback) {
-                            t.dataset.fallback = '1'
-                            t.src = resolveAssetUrl('/p/i-standee.jpg')
-                          }
-                        }}
-                      />
-                      <span className="absolute inset-0 grid place-items-center"><span className="grid size-11 place-items-center rounded-full bg-white/90 text-brand"><Play className="ml-0.5 size-5" fill="currentColor" /></span></span>
-                    </span>
-                    <span className="p-4"><span className="text-[11px] font-bold uppercase tracking-wider text-brand">Demonstration</span><span className="mt-1 block text-xl font-bold leading-tight">{fp.name}</span><span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand">View product <ArrowRight className="size-3.5" /></span></span>
-                  </Link>
-                ))}
-              </div>
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-navy/90 to-transparent" />
+              <span className="absolute left-1/2 top-1/2 grid size-20 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-brand text-white shadow-pop transition group-hover:scale-110"><Play className="ml-1 size-8" fill="currentColor" /></span>
+              <div className="absolute inset-x-0 bottom-0 p-6 text-white"><Badge tone="brand">Video tour</Badge><h3 className="mt-2 text-3xl font-bold">{activeVideo?.title || featured[0]?.name || 'Commercial Video Wall'}</h3><p className="mt-1 max-w-md text-sm text-white/70">{featured[0]?.blurb || 'Ultra-high definition commercial display in retail and enterprise environments.'}</p></div>
             </div>
-          </Container>
-        </section>
-      )}
-
-      {/* BENEFITS */}
-      {isVisible('benefits') && (
-        <section className="py-12 sm:py-20">
-          <Container>
-            <SectionHead eyebrow="Why DisplayDelight" title={homeData?.benefits?.title || 'Built around your branding'} />
-            <div className="grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-              {benefitsList.map((b, i) => {
-                const IconComponent = benefitIcons[i % benefitIcons.length]
-                return (
-                  <div key={b.t} className="bg-white p-5 sm:p-7">
-                    <span className="grid size-10 place-items-center rounded-lg bg-brand-soft text-brand sm:size-12"><IconComponent className="size-5 sm:size-6" /></span>
-                    <h3 className="mt-4 text-xl font-bold sm:mt-5 sm:text-2xl">{b.t}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-ink-2">{b.d}</p>
-                  </div>
-                )
-              })}
-            </div>
-          </Container>
-        </section>
-      )}
-
-      {/* GALLERY */}
-      {isVisible('gallery') && (
-        <section className="pb-16 sm:pb-20">
-          <Container>
-            <SectionHead eyebrow="Gallery" title="Displays at work" action={<Btn variant="secondary" to="/gallery">Explore the gallery</Btn>} />
-            <div className="gallery-grid">
-              {galleryItems ? (
-                galleryItems.slice(0, 5).map((m, i) => {
-                  const handleClick = (e: React.MouseEvent) => {
-                    if (m.media_type === 'video') {
-                      e.preventDefault()
-                      setActiveVideoModal(m.media_url)
-                    } else if (m.media_type === 'instagram') {
-                      e.preventDefault()
-                      const scMatch = m.media_url?.match(/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)
-                      const shortcode = scMatch ? scMatch[1] : ''
-                      setActiveInstagram({
-                        embedUrl: m.embed_url || `https://www.instagram.com/p/${shortcode}/embed/`,
-                        cleanUrl: m.media_url.startsWith('http') ? m.media_url : `https://www.instagram.com/p/${shortcode}/`,
-                        title: m.title || 'Instagram Showcase',
-                      })
-                    }
-                  }
-
-                  return (
-                    <Link
-                      key={m.id}
-                      to="/gallery"
-                      onClick={handleClick}
-                      className="group relative overflow-hidden rounded-xl bg-[#e9e6e1]"
-                      style={{ aspectRatio: '4/3' }}
-                    >
-                      <img
-                        src={resolveAssetUrl(m.thumbnail_url || m.media_url)}
-                        alt={m.title || ''}
-                        loading="lazy"
-                        className="size-full object-cover transition duration-700 group-hover:scale-105"
-                        onError={(e) => {
-                          const t = e.currentTarget
-                          if (!t.dataset.fallback) {
-                            t.dataset.fallback = '1'
-                            t.src = resolveAssetUrl('/p/i-standee.jpg')
-                          }
-                        }}
-                      />
-                      {m.media_type === 'video' && (
-                        <span className="absolute inset-0 grid place-items-center bg-navy/20">
-                          <span className="grid size-12 place-items-center rounded-full bg-white/90 text-brand shadow-pop transition group-hover:scale-110">
-                            <Play className="ml-0.5 size-5" fill="currentColor" />
-                          </span>
-                        </span>
-                      )}
-                      {m.media_type === 'instagram' && (
-                        <span className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-pop transition group-hover:scale-105">
-                          <InstagramIcon className="size-3" /> Reel
-                        </span>
-                      )}
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-navy/80 to-transparent p-3 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100">
-                        {m.title}
-                      </div>
-                    </Link>
-                  )
-                })
-              ) : (
-                MEDIA.map((m) => (
-                  <Link key={m} to="/gallery" className="group overflow-hidden rounded-xl bg-[#e9e6e1]" style={{ aspectRatio: '4/3' }}>
+            <div className="flex flex-col gap-5">
+              {featured.slice(1, 3).map((fp) => (
+                <Link key={fp.id} to={`/product/${fp.id}`} className="group flex flex-1 overflow-hidden rounded-xl border border-line bg-white">
+                  <span className="relative w-2/5 shrink-0 overflow-hidden bg-navy">
                     <img
-                      src={resolveAssetUrl(m)}
+                      src={resolveAssetUrl(fp.img)}
                       alt=""
+                      className="size-full object-cover opacity-85 transition group-hover:scale-105"
+                      onError={(e) => {
+                        const t = e.currentTarget
+                        if (!t.dataset.fallback) {
+                          t.dataset.fallback = '1'
+                          t.src = resolveAssetUrl('/p/i-standee.jpg')
+                        }
+                      }}
+                    />
+                    <span className="absolute inset-0 grid place-items-center"><span className="grid size-11 place-items-center rounded-full bg-white/90 text-brand"><Play className="ml-0.5 size-5" fill="currentColor" /></span></span>
+                  </span>
+                  <span className="p-4"><span className="text-[11px] font-bold uppercase tracking-wider text-brand">Demonstration</span><span className="mt-1 block text-xl font-bold leading-tight">{fp.name}</span><span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand">View product <ArrowRight className="size-3.5" /></span></span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </Container>
+      </section>
+    ),
+    benefits: () => (
+      <section className="py-12 sm:py-20">
+        <Container>
+          <SectionHead eyebrow="Why DisplayDelight" title={homeData?.benefits?.title || 'Built around your branding'} />
+          <div className="grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+            {benefitsList.map((b, i) => {
+              const IconComponent = benefitIcons[i % benefitIcons.length]
+              return (
+                <div key={b.t + i} className="bg-white p-5 sm:p-7">
+                  <span className="grid size-10 place-items-center rounded-lg bg-brand-soft text-brand sm:size-12"><IconComponent className="size-5 sm:size-6" /></span>
+                  <h3 className="mt-4 text-xl font-bold sm:mt-5 sm:text-2xl">{b.t}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-2">{b.d}</p>
+                </div>
+              )
+            })}
+          </div>
+        </Container>
+      </section>
+    ),
+    gallery: () => (
+      <section className="pb-16 sm:pb-20">
+        <Container>
+          <SectionHead eyebrow="Gallery" title="Displays at work" action={<Btn variant="secondary" to="/gallery">Explore the gallery</Btn>} />
+          <div className="gallery-grid">
+            {galleryItems ? (
+              galleryItems.slice(0, 5).map((m) => {
+                const handleClick = (e: React.MouseEvent) => {
+                  if (m.media_type === 'video') {
+                    e.preventDefault()
+                    setActiveVideoModal(m.media_url)
+                  } else if (m.media_type === 'instagram') {
+                    e.preventDefault()
+                    const scMatch = m.media_url?.match(/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)
+                    const shortcode = scMatch ? scMatch[1] : ''
+                    setActiveInstagram({
+                      embedUrl: m.embed_url || `https://www.instagram.com/p/${shortcode}/embed/`,
+                      cleanUrl: m.media_url.startsWith('http') ? m.media_url : `https://www.instagram.com/p/${shortcode}/`,
+                      title: m.title || 'Instagram Showcase',
+                    })
+                  }
+                }
+
+                return (
+                  <Link
+                    key={m.id}
+                    to="/gallery"
+                    onClick={handleClick}
+                    className="group relative overflow-hidden rounded-xl bg-[#e9e6e1]"
+                    style={{ aspectRatio: '4/3' }}
+                  >
+                    <img
+                      src={resolveAssetUrl(m.thumbnail_url || m.media_url)}
+                      alt={m.title || ''}
                       loading="lazy"
                       className="size-full object-cover transition duration-700 group-hover:scale-105"
                       onError={(e) => {
@@ -488,81 +584,131 @@ export default function Home() {
                         }
                       }}
                     />
-                  </Link>
-                ))
-              )}
-            </div>
-          </Container>
-        </section>
-      )}
-
-      {/* REAL TESTIMONIALS + FAQ FROM DB */}
-      {isVisible('tf') && (
-        <section className="border-t border-line bg-soft py-12 sm:py-20">
-          <Container className="grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-12">
-            <div>
-              <SectionHead eyebrow="Customer feedback" title="Verified Customer Reviews" />
-              {testimonials.length > 0 ? (
-                <div className="space-y-4">
-                  {testimonials.map((t) => (
-                    <div key={t.id} className="rounded-xl border border-line bg-white p-6 shadow-sm">
-                      <div className="flex items-center gap-1 text-amber-500">
-                        {Array.from({ length: t.rating || 5 }).map((_, idx) => (
-                          <Star key={idx} className="size-4 fill-current" />
-                        ))}
-                      </div>
-                      <p className="mt-3 text-base italic leading-relaxed text-ink">"{t.text}"</p>
-                      <div className="mt-4 flex items-center justify-between border-t border-line/60 pt-3">
-                        <div>
-                          <p className="font-bold text-ink">{t.author_name}</p>
-                          <p className="text-xs text-ink-2">{t.company}</p>
-                        </div>
-                        <Badge tone="ok">Verified Client</Badge>
-                      </div>
+                    {m.media_type === 'video' && (
+                      <span className="absolute inset-0 grid place-items-center bg-navy/20">
+                        <span className="grid size-12 place-items-center rounded-full bg-white/90 text-brand shadow-pop transition group-hover:scale-110">
+                          <Play className="ml-0.5 size-5" fill="currentColor" />
+                        </span>
+                      </span>
+                    )}
+                    {m.media_type === 'instagram' && (
+                      <span className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-pop transition group-hover:scale-105">
+                        <InstagramIcon className="size-3" /> Reel
+                      </span>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-navy/80 to-transparent p-3 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100 flex items-end">
+                      {m.title}
                     </div>
-                  ))}
-                </div>
+                  </Link>
+                )
+              })
+            ) : (
+              MEDIA.map((m) => (
+                <Link key={m} to="/gallery" className="group overflow-hidden rounded-xl bg-[#e9e6e1]" style={{ aspectRatio: '4/3' }}>
+                  <img
+                    src={resolveAssetUrl(m)}
+                    alt=""
+                    loading="lazy"
+                    className="size-full object-cover transition duration-700 group-hover:scale-105"
+                    onError={(e) => {
+                      const t = e.currentTarget
+                      if (!t.dataset.fallback) {
+                        t.dataset.fallback = '1'
+                        t.src = resolveAssetUrl('/p/i-standee.jpg')
+                      }
+                    }}
+                  />
+                </Link>
+              ))
+            )}
+          </div>
+        </Container>
+      </section>
+    ),
+    tf: () => (
+      <section className="border-t border-line bg-soft py-12 sm:py-20">
+        <Container className="grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-12">
+          <div>
+            <SectionHead eyebrow="Customer feedback" title="Verified Customer Reviews" />
+            {testimonials.length > 0 ? (
+              <div className="space-y-4">
+                {testimonials.map((t) => (
+                  <div key={t.id} className="rounded-xl border border-line bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-1 text-amber-500">
+                      {Array.from({ length: t.rating || 5 }).map((_, idx) => (
+                        <Star key={idx} className="size-4 fill-current" />
+                      ))}
+                    </div>
+                    <p className="mt-3 text-base italic leading-relaxed text-ink">"{t.text}"</p>
+                    <div className="mt-4 flex items-center justify-between border-t border-line/60 pt-3">
+                      <div>
+                        <p className="font-bold text-ink">{t.author_name}</p>
+                        <p className="text-xs text-ink-2">{t.company}</p>
+                      </div>
+                      <Badge tone="ok">Verified Client</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-[#c9c9d1] bg-white p-8">
+                <QuoteIcon className="size-8 text-brand" />
+                <p className="mt-3 text-lg font-medium text-ink-2">Authentic reviews published by verified customers.</p>
+              </div>
+            )}
+          </div>
+          <div>
+            <SectionHead eyebrow="FAQ" title="Quick answers" />
+            <Accordion items={activeFaqs} />
+            <Link to="/faq" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand">All FAQs <ArrowRight className="size-4" /></Link>
+          </div>
+        </Container>
+      </section>
+    ),
+    contact: () => (
+      <section className="bg-brand py-12 text-white sm:py-16">
+        <Container className="flex flex-wrap items-center justify-between gap-6 sm:gap-8">
+          <div className="min-w-0 flex-1">
+            <h2 className="cta-heading font-bold uppercase font-display">
+              {activeContact?.title ? (
+                activeContact.title
               ) : (
-                <div className="rounded-xl border border-dashed border-[#c9c9d1] bg-white p-8">
-                  <QuoteIcon className="size-8 text-brand" />
-                  <p className="mt-3 text-lg font-medium text-ink-2">Authentic reviews published by verified customers.</p>
-                </div>
+                <>Ready to light up<br />your brand?</>
               )}
-            </div>
-            <div>
-              <SectionHead eyebrow="FAQ" title="Quick answers" />
-              <Accordion items={faqs} />
-              <Link to="/faq" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand">All FAQs <ArrowRight className="size-4" /></Link>
-            </div>
-          </Container>
-        </section>
-      )}
+            </h2>
+            <p className="mt-3 max-w-md text-sm text-white/85 sm:text-base">
+              {activeContact?.text || 'Tell us what you need — product, size, quantity — and our team will get back to you.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Btn size="lg" variant="dark" to={activeContact?.to || '/quote'}>
+              {activeContact?.cta || 'Request a quote'}
+            </Btn>
+            <Btn size="lg" variant="ghostLight" to="/contact">Contact us</Btn>
+          </div>
+        </Container>
+      </section>
+    ),
+    footer: () => (
+      previewProps ? (
+        <div className="pointer-events-none">
+          <Footer />
+        </div>
+      ) : null
+    ),
+  }
 
-      {/* FINAL CTA */}
-      {isVisible('contact') && (
-        <section className="bg-brand py-12 text-white sm:py-16">
-          <Container className="flex flex-wrap items-center justify-between gap-6 sm:gap-8">
-            <div className="min-w-0 flex-1">
-              <h2 className="cta-heading font-bold uppercase font-display">
-                {homeData?.contact?.title ? (
-                  homeData.contact.title
-                ) : (
-                  <>Ready to light up<br />your brand?</>
-                )}
-              </h2>
-              <p className="mt-3 max-w-md text-sm text-white/85 sm:text-base">
-                {homeData?.contact?.text || 'Tell us what you need — product, size, quantity — and our team will get back to you.'}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Btn size="lg" variant="dark" to={homeData?.contact?.to || '/quote'}>
-                {homeData?.contact?.cta || 'Request a quote'}
-              </Btn>
-              <Btn size="lg" variant="ghostLight" to="/contact">Contact us</Btn>
-            </div>
-          </Container>
-        </section>
-      )}
+  return (
+    <>
+      {activeSecs.map((sec) => {
+        if (!isVisible(sec.id)) return null
+        const render = sectionRenderers[sec.id]
+        if (!render) return null
+        const content = render()
+        if (!content) return null
+        const label = sec.label || defaultSecs.find((d) => d.id === sec.id)?.label || sec.id
+        return renderSectionWrapper(sec.id, content, label)
+      })}
 
       {/* Video Modal Player */}
       {activeVideoModal && (

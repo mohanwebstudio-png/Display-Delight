@@ -5,6 +5,7 @@ import { go, useApp } from '../store'
 import { CATS, FAQS, INDUSTRIES, PRODUCTS, byId, catName } from '../data'
 import { AdminPage, Card, SampleNote, SaveBar, StatusBadge, Table, Td, Toolbar, Tr } from './kit'
 import { adminApi } from '../api'
+import Home from '../pages/Home'
 
 /* ---------- shared helpers ---------- */
 const IMGS = ['hero', 'a-card', 'a-standee', 'backlit', 'card-stand', 'clipon', 'fabric', 'frames', 'gazebo', 'hologram', 'i-standee', 'l-led', 'led-blockout', 'lightbox-rect', 'lightbox-round', 'multi', 'projector', 'rollup', 't-led', 'tabletop-standee', 'tripod', 'ultraslim', 'umbrella'].map((n) => `/p/${n}.jpg`)
@@ -75,38 +76,23 @@ const INIT = {
 }
 type Cfg = typeof INIT
 
-function Wire({ id, c, on }: { id: string; c: Cfg; on: boolean }) {
-  const h = (t: string) => <p className="font-display text-xl font-bold leading-none text-navy">{t}</p>
-  const pad = 'px-5 py-5'
-  switch (id) {
-    case 'announce': return <div className="bg-brand px-4 py-1.5 text-center text-[11px] font-semibold text-white">{c.announce.text || 'Announcement bar text appears here'}</div>
-    case 'header': return <div className="flex items-center justify-between border-b border-line bg-white px-4 py-2.5"><span className="font-display text-lg font-bold text-navy">Display<span className="text-brand">Delight</span></span><span className="hidden gap-3 text-[11px] text-ink-2 @lg:flex"><span>Shop</span><span>Industries</span><span>Gallery</span><span>Contact</span></span><span className="flex gap-1.5">{[0, 1, 2].map((i) => <span key={i} className="size-4 rounded bg-soft" />)}</span></div>
-    case 'hero': return <div className="relative flex min-h-44 items-center overflow-hidden bg-navy"><img src={c.hero.img} alt="" className="absolute inset-0 size-full object-cover opacity-50" /><div className="relative max-w-sm p-6 text-white"><p className="font-display text-3xl font-bold leading-[.95]">{c.hero.headline}</p><p className="mt-2 text-[11px] text-white/80">{c.hero.sub}</p><div className="mt-3 flex gap-2"><span className="rounded bg-brand px-3 py-1.5 text-[11px] font-semibold">{c.hero.c1}</span><span className="rounded border border-white/50 px-3 py-1.5 text-[11px] font-semibold">{c.hero.c2}</span></div></div></div>
-    case 'cats': return <div className={pad}>{h('Shop by category')}<div className="mt-3 grid grid-cols-3 gap-2 @2xl:grid-cols-6">{c.cats.map((k) => { const x = CATS.find((y) => y.id === k) || { img: '/p/i-standee.jpg', name: k }; return <div key={k}><img src={x.img} alt="" className="aspect-square w-full rounded object-cover" /><p className="mt-1 truncate text-[10px] font-semibold">{x.name}</p></div> })}</div></div>
-    case 'featured': return <div className={cx(pad, 'bg-soft')}>{h('Featured products')}<div className="mt-3 grid grid-cols-2 gap-2 @2xl:grid-cols-4">{c.featured.map((k) => { const p = byId(k) || { img: '/p/i-standee.jpg', name: k }; return <div key={k} className="rounded bg-white p-1.5 shadow-sm"><img src={p.img} alt="" className="aspect-[4/3] w-full rounded object-cover" /><p className="mt-1 truncate text-[10px] font-semibold">{p.name}</p></div> })}</div></div>
-    case 'intro': return <div className={cx(pad, 'grid items-center gap-4 @2xl:grid-cols-2')}><div>{h(c.intro.title)}<p className="mt-1.5 text-[11px] text-ink-2">{c.intro.text}</p></div><img src={c.intro.img} alt="" className="aspect-video w-full rounded object-cover" /></div>
-    case 'industries': return <div className={pad}>{h('Industries we serve')}<div className="mt-3 grid grid-cols-2 gap-2 @2xl:grid-cols-4">{c.industries.map((i) => { const ind = INDUSTRIES[i] || ['Commercial Displays', 'Engineered for public spaces.', '/p/i-standee.jpg']; return <div key={i} className="relative overflow-hidden rounded"><img src={ind[2]} alt="" className="aspect-[4/3] w-full object-cover" /><span className="absolute inset-x-0 bottom-0 bg-navy/70 px-1.5 py-1 text-[10px] font-semibold text-white">{ind[0]}</span></div> })}</div></div>
-    case 'logos': return <div className={cx(pad, 'bg-soft')}>{h('Trusted by')}<div className="mt-3 grid grid-cols-4 gap-2 @2xl:grid-cols-6">{Array.from({ length: 6 }, (_, i) => <div key={i} className="grid h-9 place-items-center rounded border border-dashed border-line text-[9px] text-ink-2">Logo slot</div>)}</div></div>
-    case 'video': return <div className={pad}>{h(c.video.title)}<div className="relative mt-3 overflow-hidden rounded"><img src={c.video.poster} alt="" className="aspect-video w-full object-cover" /><span className="absolute inset-0 grid place-items-center bg-navy/40"><span className="grid size-10 place-items-center rounded-full bg-brand text-white"><Play className="size-4 fill-current" /></span></span></div></div>
-    case 'benefits': return <div className={cx(pad, 'bg-navy text-white')}><p className="font-display text-xl font-bold leading-none">Why DisplayDelight</p><div className="mt-3 grid gap-2 @2xl:grid-cols-3">{c.benefits.map((b, i) => <div key={i} className="rounded bg-white/10 p-2.5"><p className="text-[11px] font-bold">{b.t || 'Benefit title'}</p><p className="mt-0.5 text-[10px] text-white/70">{b.d}</p></div>)}</div></div>
-    case 'gallery': return <div className={pad}>{h(c.gallery.title)}<div className="mt-3 grid grid-cols-4 gap-1.5">{IMGS.slice(3, 3 + Number(c.gallery.count)).map((s) => <img key={s} src={s} alt="" className="aspect-square rounded object-cover" />)}</div></div>
-    case 'tf': return <div className={cx(pad, 'bg-soft')}>{h('Questions & reviews')}<div className="mt-3 space-y-1.5">{c.tf.faqs.map((i) => { const qText = (FAQS[i] && FAQS[i][0]) ? FAQS[i][0] : (i === 0 ? 'What warranty is provided on commercial LED walls?' : i === 1 ? 'Can we upload custom brand graphics & artwork?' : 'How long does delivery take across India?'); return <div key={i} className="rounded bg-white px-2.5 py-1.5 text-[11px] font-semibold">{qText}</div> })}</div></div>
-    case 'contact': return <div className="bg-brand px-5 py-6 text-center text-white"><p className="font-display text-2xl font-bold leading-none">{c.contact.title}</p><p className="mt-1.5 text-[11px] text-white/85">{c.contact.text}</p><span className="mt-3 inline-block rounded bg-white px-4 py-1.5 text-[11px] font-bold text-brand">{c.contact.cta}</span></div>
-    default: return <div className="grid gap-3 bg-[#12121f] px-5 py-5 text-white/70 @2xl:grid-cols-4">{['DisplayDelight', 'Shop', 'Company', 'Support'].map((t) => <div key={t}><p className="text-[11px] font-bold text-white">{t}</p><div className="mt-1.5 space-y-1">{[0, 1, 2].map((i) => <div key={i} className="h-1.5 w-3/4 rounded bg-white/15" />)}</div></div>)}</div>
-  }
-}
-function Preview({ secs, c, sel, onSel, mode = 'desktop' }: { secs: { id: string; on: boolean }[]; c: Cfg; sel?: string; onSel?: (id: string) => void; mode?: string }) {
-  const w = mode === 'mobile' ? 'max-w-[390px]' : mode === 'tablet' ? 'max-w-[768px]' : 'max-w-none'
-  const vis = secs.filter((s) => s.on)
+function Preview({
+  secs,
+  c,
+  sel,
+  onSel,
+  mode = 'desktop',
+}: {
+  secs: { id: string; on: boolean; label?: string }[]
+  c: Cfg
+  sel?: string
+  onSel?: (id: string) => void
+  mode?: string
+}) {
+  const w = mode === 'mobile' ? 'max-w-[400px]' : mode === 'tablet' ? 'max-w-[768px]' : 'w-full'
   return (
-    <div className={cx('@container mx-auto w-full overflow-hidden rounded-lg border border-line bg-white shadow-card', w)}>
-      {vis.length === 0 && <EmptyState title="All sections hidden" text="Turn on a section to see it here." />}
-      {vis.map((s) => (
-        <div key={s.id} onClick={() => onSel?.(s.id)} className={cx('relative', onSel && 'cursor-pointer', sel === s.id && 'outline outline-2 -outline-offset-2 outline-brand')}>
-          {sel === s.id && <span className="absolute left-0 top-0 z-10 rounded-br bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white">{SECS.find((x) => x[0] === s.id)![1]}</span>}
-          <Wire id={s.id} c={c} on />
-        </div>
-      ))}
+    <div className={cx('mx-auto transition-all duration-300 overflow-hidden rounded-xl border border-line bg-white shadow-xl', w)}>
+      <Home previewProps={{ secs, c, selectedSection: sel, onSelectSection: onSel, mode }} />
     </div>
   )
 }
@@ -236,12 +222,50 @@ export function HomepageEditor(_: any) {
       <div className="mb-4 lg:hidden"><Tabs value={tab} onChange={setTab} tabs={[{ value: 'sections', label: 'Sections' }, { value: 'preview', label: 'Preview' }, { value: 'edit', label: 'Edit' }]} /></div>
       <div className="grid items-start gap-5 lg:grid-cols-[270px_minmax(0,1fr)_340px]">
         <div className={show('sections')}>{list}</div>
-        <div className={cx(show('preview'), 'lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto lg:rounded-xl lg:bg-soft lg:p-4')}><Preview secs={secs} c={c} sel={sel} onSel={(id) => { setSel(id); if (window.innerWidth < 1024) setTab('edit') }} /></div>
+        <div className={cx(show('preview'), 'lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto lg:rounded-xl lg:bg-soft lg:p-4')}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-navy">Exact Storefront Live Preview</span>
+              <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live Sync
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Segmented
+                value={mode}
+                onChange={setMode}
+                options={[
+                  { value: 'desktop', label: 'Desktop' },
+                  { value: 'tablet', label: 'Tablet' },
+                  { value: 'mobile', label: 'Mobile' },
+                ]}
+              />
+              <Btn size="sm" variant="secondary" icon={<Eye className="size-3.5" />} onClick={() => setPrev(true)}>
+                Fullscreen
+              </Btn>
+            </div>
+          </div>
+          <Preview secs={secs} c={c} sel={sel} onSel={(id) => { setSel(id); if (window.innerWidth < 1024) setTab('edit') }} mode={mode} />
+        </div>
         <div className={show('edit')}><Card title={label} desc="Edit this section"><div className="space-y-4">{editor}</div></Card></div>
       </div>
-      <Drawer open={prev} onClose={() => setPrev(false)} title="Homepage preview" width="max-w-6xl">
-        <div className="mb-4"><Segmented value={mode} onChange={setMode} options={[{ value: 'desktop', label: 'Desktop' }, { value: 'tablet', label: 'Tablet' }, { value: 'mobile', label: 'Mobile' }]} /></div>
-        <div className="rounded-xl bg-soft p-3 sm:p-6"><Preview secs={secs} c={c} mode={mode} /></div>
+      <Drawer open={prev} onClose={() => setPrev(false)} title="Full Homepage Preview" width="max-w-7xl">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <Segmented
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'desktop', label: 'Desktop (100%)' },
+              { value: 'tablet', label: 'Tablet (768px)' },
+              { value: 'mobile', label: 'Mobile (400px)' },
+            ]}
+          />
+          <p className="text-xs text-ink-2">Live responsive storefront preview. Click any section to select it in the editor.</p>
+        </div>
+        <div className="rounded-xl bg-soft p-2 sm:p-6 overflow-x-auto">
+          <Preview secs={secs} c={c} sel={sel} onSel={(id) => { setSel(id); setPrev(false); setTab('edit') }} mode={mode} />
+        </div>
       </Drawer>
       <Modal open={pub} onClose={() => setPub(false)} title="Publish homepage?" footer={<div className="flex justify-end gap-2"><Btn variant="secondary" onClick={() => setPub(false)}>Cancel</Btn><Btn onClick={() => saveHomepage(true)}>Publish now</Btn></div>}>
         <p className="text-sm text-ink-2">Visitors will see these changes on the live storefront straight away. {secs.filter((s) => !s.on).length} section(s) are hidden.</p>
