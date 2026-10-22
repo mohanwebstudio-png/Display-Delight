@@ -391,6 +391,341 @@ function HorizontalCategorySection({
   )
 }
 
+interface TedyGallerySlide {
+  id: string | number
+  title: string
+  venue: string
+  tag: string
+  img: string
+  media_type?: string
+  media_url?: string
+  embed_url?: string
+}
+
+function TedyScrollGallery({
+  slides,
+  isPreview,
+  title = 'Displays at work',
+  eyebrow = 'Live Installations',
+  onOpenVideo,
+  onOpenInstagram,
+}: {
+  slides: TedyGallerySlide[]
+  isPreview?: boolean
+  title?: string
+  eyebrow?: string
+  onOpenVideo?: (url: string) => void
+  onOpenInstagram?: (data: { embedUrl: string; cleanUrl: string; title: string }) => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const stickyRef = useRef<HTMLDivElement>(null)
+  const [progress, setProgress] = useState(0)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [touchStartX, setTouchStartX] = useState<number | null>(null)
+  const totalSlides = slides.length
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const scrollParent = container.closest('.overflow-y-auto') || window
+
+    const onScroll = () => {
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const totalScrollable = containerRef.current.offsetHeight - window.innerHeight
+      if (totalScrollable <= 0) return
+
+      let p = 0
+      if (scrollParent === window) {
+        const scrolled = -rect.top
+        p = Math.min(Math.max(scrolled / totalScrollable, 0), 1)
+      } else {
+        const parentElem = scrollParent as HTMLElement
+        const parentScrollTop = parentElem.scrollTop
+        const sectionOffsetTop = containerRef.current.offsetTop
+        const height = containerRef.current.offsetHeight - parentElem.clientHeight
+        if (height > 0) {
+          const scrolled = parentScrollTop - sectionOffsetTop
+          p = Math.min(Math.max(scrolled / height, 0), 1)
+        }
+      }
+
+      setProgress(p)
+      const currentIdx = Math.min(totalSlides - 1, Math.floor(p * totalSlides))
+      setActiveIndex(currentIdx)
+    }
+
+    if (scrollParent === window) {
+      window.addEventListener('scroll', onScroll, { passive: true })
+      return () => window.removeEventListener('scroll', onScroll)
+    } else {
+      const parentElem = scrollParent as HTMLElement
+      parentElem.addEventListener('scroll', onScroll, { passive: true })
+      return () => parentElem.removeEventListener('scroll', onScroll)
+    }
+  }, [totalSlides])
+
+  // Slide navigation by clicking dots, chevrons, or swiping
+  const goToSlide = (index: number) => {
+    const targetIdx = Math.max(0, Math.min(totalSlides - 1, index))
+    setActiveIndex(targetIdx)
+    if (!containerRef.current) return
+    const container = containerRef.current
+    const scrollParent = container.closest('.overflow-y-auto') || window
+    const targetP = totalSlides > 1 ? targetIdx / (totalSlides - 1) : 0
+    const totalScrollable = container.offsetHeight - (scrollParent === window ? window.innerHeight : (scrollParent as HTMLElement).clientHeight)
+    if (totalScrollable <= 0) return
+
+    const targetScrollY = container.offsetTop + targetP * totalScrollable
+    if (scrollParent === window) {
+      window.scrollTo({ top: targetScrollY, behavior: 'smooth' })
+    } else {
+      (scrollParent as HTMLElement).scrollTo({ top: targetScrollY, behavior: 'smooth' })
+    }
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX)
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return
+    const diff = touchStartX - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) {
+        goToSlide(activeIndex + 1)
+      } else {
+        goToSlide(activeIndex - 1)
+      }
+    }
+    setTouchStartX(null)
+  }
+
+  // Calculate local progress within the active slide (0 -> 1)
+  const segmentSize = totalSlides > 0 ? 1 / totalSlides : 1
+  const localSlideProgress = Math.min(
+    1,
+    Math.max(0, (progress - activeIndex * segmentSize) / segmentSize)
+  )
+
+  // 3D perspective & scale effect calculation (Tedy signature feel)
+  const tiltDeg = (1 - localSlideProgress) * -1.8
+  const scaleVal = 0.98 + localSlideProgress * 0.03
+
+  const currentSlide = slides[activeIndex] || slides[0]
+
+  return (
+    <div
+      ref={containerRef}
+      className={cx(
+        'relative bg-navy text-white selection:bg-brand selection:text-white',
+        isPreview ? 'min-h-[160vh]' : 'min-h-[260vh] sm:min-h-[300vh]'
+      )}
+    >
+      {/* Sticky viewport frame that locks in place while user scrolls through the timeline */}
+      <div
+        ref={stickyRef}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="sticky top-0 h-screen max-h-screen w-full flex flex-col justify-between py-6 sm:py-8 overflow-hidden z-10"
+      >
+        {/* Ambient subtle glow */}
+        <div className="pointer-events-none absolute -left-48 top-1/3 size-[500px] rounded-full bg-brand/12 blur-[140px]" />
+        <div className="pointer-events-none absolute -right-48 bottom-1/4 size-[500px] rounded-full bg-purple-600/10 blur-[140px]" />
+
+        <Container className="relative flex flex-col justify-between h-full max-w-6xl mx-auto w-full px-4 sm:px-6">
+          {/* Minimal Header */}
+          <div className="flex items-center justify-between gap-4 shrink-0 pb-3 border-b border-white/10">
+            <div>
+              <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#ff9b73]">
+                {eyebrow}
+              </p>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white font-display mt-0.5">
+                {title}
+              </h2>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Slide Counter */}
+              <div className="font-mono text-xs sm:text-sm text-white/70 bg-white/10 px-3 py-1 rounded-full border border-white/15">
+                <span className="font-bold text-white">0{activeIndex + 1}</span>
+                <span className="text-white/40 mx-1.5">/</span>
+                <span>0{totalSlides}</span>
+              </div>
+
+              {/* Prev / Next Chevrons */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => goToSlide(activeIndex - 1)}
+                  disabled={activeIndex === 0}
+                  aria-label="Previous installation"
+                  className="grid size-8 sm:size-9 place-items-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 disabled:opacity-20 disabled:pointer-events-none text-white transition border border-white/10 cursor-pointer"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToSlide(activeIndex + 1)}
+                  disabled={activeIndex === totalSlides - 1}
+                  aria-label="Next installation"
+                  className="grid size-8 sm:size-9 place-items-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 disabled:opacity-20 disabled:pointer-events-none text-white transition border border-white/10 cursor-pointer"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              </div>
+
+              {/* Minimal Link */}
+              <Link
+                to="/gallery"
+                className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-white/80 hover:text-brand transition pl-2"
+              >
+                <span>All installations</span>
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Central Tedy Media Stage with 3D Tilt & Subtle Perspective */}
+          <div className="relative flex-1 flex items-center justify-center py-3 sm:py-5 min-h-0 [perspective:1200px]">
+            <div
+              className="relative w-full max-w-4xl h-full max-h-[58vh] sm:max-h-[64vh] rounded-2xl sm:rounded-3xl overflow-hidden bg-neutral-900 border border-white/15 shadow-2xl transition-transform duration-300 ease-out will-change-transform"
+              style={{
+                transform: `scale(${scaleVal}) rotateX(${tiltDeg}deg)`,
+                transformStyle: 'preserve-3d',
+              }}
+            >
+              {/* Stacked Images / Media with Smooth Scroll Transitions */}
+              {slides.map((s, idx) => {
+                const isActive = idx === activeIndex
+                const isPassed = idx < activeIndex
+                return (
+                  <div
+                    key={s.id}
+                    className={cx(
+                      'absolute inset-0 size-full transition-all duration-700 ease-out',
+                      isActive
+                        ? 'opacity-100 scale-100 z-10 pointer-events-auto'
+                        : isPassed
+                        ? 'opacity-0 scale-95 z-0 pointer-events-none'
+                        : 'opacity-0 scale-105 z-0 pointer-events-none'
+                    )}
+                  >
+                    <img
+                      src={resolveAssetUrl(s.img)}
+                      alt={s.title}
+                      loading={idx === 0 ? 'eager' : 'lazy'}
+                      className="size-full object-cover object-center"
+                      onError={(e) => {
+                        const t = e.currentTarget
+                        if (!t.dataset.fallback) {
+                          t.dataset.fallback = '1'
+                          t.src = resolveAssetUrl('/p/hero.jpg')
+                        }
+                      }}
+                    />
+
+                    {/* Subtle Cinematic Vignette */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+
+                    {/* Media Type Badges / Lightbox Triggers */}
+                    {s.media_type === 'video' && s.media_url && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenVideo?.(s.media_url!)}
+                        className="absolute inset-0 grid place-items-center group/btn z-20 cursor-pointer"
+                        aria-label="Play video"
+                      >
+                        <span className="grid size-14 sm:size-16 place-items-center rounded-full bg-white/90 text-brand shadow-2xl transition-all duration-300 group-hover/btn:scale-110 group-hover/btn:bg-white">
+                          <Play className="ml-1 size-6 sm:size-7" fill="currentColor" />
+                        </span>
+                      </button>
+                    )}
+
+                    {s.media_type === 'instagram' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const scMatch = s.media_url?.match(/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)
+                          const shortcode = scMatch ? scMatch[1] : ''
+                          onOpenInstagram?.({
+                            embedUrl: s.embed_url || `https://www.instagram.com/p/${shortcode}/embed/`,
+                            cleanUrl: s.media_url?.startsWith('http') ? s.media_url : `https://www.instagram.com/p/${shortcode}/`,
+                            title: s.title,
+                          })
+                        }}
+                        className="absolute top-4 right-4 z-20 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 px-3 py-1.5 text-xs font-bold text-white shadow-xl hover:scale-105 transition cursor-pointer"
+                      >
+                        <InstagramIcon className="size-3.5" />
+                        <span>Watch Reel</span>
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Minimal Floating Info Capsule (Bottom Overlay) */}
+              <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-20 flex items-end justify-between gap-4 pointer-events-auto">
+                <div className="rounded-xl sm:rounded-2xl bg-black/60 backdrop-blur-md p-3 sm:p-4 border border-white/15 max-w-lg shadow-xl">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-brand/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#ff9b73] border border-brand/30 mb-1.5">
+                    <span className="size-1.5 rounded-full bg-brand animate-pulse" />
+                    {currentSlide.tag}
+                  </div>
+                  <h3 className="text-sm sm:text-base md:text-lg font-bold text-white truncate">
+                    {currentSlide.title}
+                  </h3>
+                  <p className="text-xs text-white/70 truncate mt-0.5">
+                    {currentSlide.venue}
+                  </p>
+                </div>
+
+                <div className="hidden sm:flex items-center gap-2 rounded-xl bg-black/50 backdrop-blur-md px-3.5 py-2 border border-white/10 text-xs text-white/60">
+                  <span className="size-1.5 rounded-full bg-white/40 animate-ping" />
+                  <span>Scroll to advance</span>
+                  <ArrowDown className="size-3 text-white/50 animate-bounce" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Minimalist Segmented Scrubber (Tedy timeline signature) */}
+          <div className="shrink-0 pt-2 pb-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 w-full max-w-4xl mx-auto">
+              {slides.map((_, i) => {
+                const isPast = i < activeIndex
+                const isCurrent = i === activeIndex
+                const fillWidth = isPast ? 100 : isCurrent ? localSlideProgress * 100 : 0
+
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => goToSlide(i)}
+                    aria-label={`Jump to slide ${i + 1}`}
+                    className="group/seg relative h-2 flex-1 rounded-full bg-white/15 overflow-hidden transition-all duration-200 cursor-pointer hover:h-2.5 hover:bg-white/25"
+                  >
+                    <div
+                      className="absolute inset-y-0 left-0 bg-brand rounded-full transition-all duration-100 ease-out"
+                      style={{ width: `${fillWidth}%` }}
+                    />
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-white/45 max-w-4xl mx-auto mt-2 px-0.5 font-medium">
+              <span>01 / {slides[0]?.tag || 'Showroom'}</span>
+              <span className="hidden xs:inline">Interactive Scroll Timeline</span>
+              <span>0{totalSlides} / {slides[totalSlides - 1]?.tag || 'Outdoor'}</span>
+            </div>
+          </div>
+        </Container>
+      </div>
+    </div>
+  )
+}
+
 export default function Home({ previewProps }: { previewProps?: HomePreviewProps } = {}) {
   const { products, categories, isLoadingCatalogue, addToCart, setCoupon, toast } = useApp()
   const [homeData, setHomeData] = useState<ApiHomepageData | null>(null)
@@ -1343,91 +1678,67 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
         </Container>
       </section>
     ),
-    gallery: () => (
-      <section className="pb-16 sm:pb-20">
-        <Container>
-          <SectionHead eyebrow="Gallery" title="Displays at work" action={<Btn variant="secondary" to="/gallery">Explore the gallery</Btn>} />
-          <div className="gallery-grid">
-            {galleryItems ? (
-              galleryItems.slice(0, 5).map((m) => {
-                const handleClick = (e: React.MouseEvent) => {
-                  if (m.media_type === 'video') {
-                    e.preventDefault()
-                    setActiveVideoModal(m.media_url)
-                  } else if (m.media_type === 'instagram') {
-                    e.preventDefault()
-                    const scMatch = m.media_url?.match(/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)
-                    const shortcode = scMatch ? scMatch[1] : ''
-                    setActiveInstagram({
-                      embedUrl: m.embed_url || `https://www.instagram.com/p/${shortcode}/embed/`,
-                      cleanUrl: m.media_url.startsWith('http') ? m.media_url : `https://www.instagram.com/p/${shortcode}/`,
-                      title: m.title || 'Instagram Showcase',
-                    })
-                  }
-                }
+    gallery: () => {
+      const gallerySlides: TedyGallerySlide[] = (galleryItems && galleryItems.length > 0)
+        ? galleryItems.slice(0, 6).map((item, idx) => ({
+            id: item.id || idx,
+            title: item.title || 'Commercial Display Installation',
+            venue: item.description || 'Showroom & Retail Deployment · Real World Site',
+            tag: item.media_type === 'video' ? 'Video Demo' : item.media_type === 'instagram' ? 'Reel Showcase' : 'Live Installation',
+            img: item.thumbnail_url || item.media_url || '/p/ultraslim.jpg',
+            media_type: item.media_type,
+            media_url: item.media_url,
+            embed_url: item.embed_url,
+          }))
+        : [
+            {
+              id: 'g1',
+              title: 'Ultra-Slim Backlit Commercial Light Box',
+              venue: 'Flagship Luxury Storefront · Mumbai Retail Center',
+              tag: 'Storefront Display',
+              img: '/p/ultraslim.jpg',
+            },
+            {
+              id: 'g2',
+              title: 'E-Series 55" 4K Digital Wall Signage',
+              venue: 'Corporate Headquarters Atrium · Bangalore Tech Park',
+              tag: 'Corporate Signage',
+              img: '/p/frames.jpg',
+            },
+            {
+              id: 'g3',
+              title: 'Freestanding Double-Sided Digital Standee',
+              venue: 'Convention Center Lobby · New Delhi Exhibition',
+              tag: 'Freestanding Standee',
+              img: '/p/i-standee.jpg',
+            },
+            {
+              id: 'g4',
+              title: 'Magnetic Seamless LED Fabric Light Box',
+              venue: 'Automobile Experience Center · Chennai',
+              tag: 'Showroom Illumination',
+              img: '/p/fabric.jpg',
+            },
+            {
+              id: 'g5',
+              title: 'Heavy-Duty Commercial Outdoor Display',
+              venue: 'Shopping Boulevard & Pavilion Entrance',
+              tag: 'Outdoor Branding',
+              img: '/p/gazebo.jpg',
+            },
+          ]
 
-                return (
-                  <Link
-                    key={m.id}
-                    to="/gallery"
-                    onClick={handleClick}
-                    className="group relative overflow-hidden rounded-xl bg-[#e9e6e1]"
-                    style={{ aspectRatio: '4/3' }}
-                  >
-                    <img
-                      src={resolveAssetUrl(m.thumbnail_url || m.media_url)}
-                      alt={m.title || ''}
-                      loading="lazy"
-                      className="size-full object-cover transition duration-700 group-hover:scale-105"
-                      onError={(e) => {
-                        const t = e.currentTarget
-                        if (!t.dataset.fallback) {
-                          t.dataset.fallback = '1'
-                          t.src = resolveAssetUrl('/p/i-standee.jpg')
-                        }
-                      }}
-                    />
-                    {m.media_type === 'video' && (
-                      <span className="absolute inset-0 grid place-items-center bg-navy/20">
-                        <span className="grid size-12 place-items-center rounded-full bg-white/90 text-brand shadow-pop transition group-hover:scale-110">
-                          <Play className="ml-0.5 size-5" fill="currentColor" />
-                        </span>
-                      </span>
-                    )}
-                    {m.media_type === 'instagram' && (
-                      <span className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-pop transition group-hover:scale-105">
-                        <InstagramIcon className="size-3" /> Reel
-                      </span>
-                    )}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-navy/80 to-transparent p-3 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100 flex items-end">
-                      {m.title}
-                    </div>
-                  </Link>
-                )
-              })
-            ) : (
-              MEDIA.map((m) => (
-                <Link key={m} to="/gallery" className="group overflow-hidden rounded-xl bg-[#e9e6e1]" style={{ aspectRatio: '4/3' }}>
-                  <img
-                    src={resolveAssetUrl(m)}
-                    alt=""
-                    loading="lazy"
-                    className="size-full object-cover transition duration-700 group-hover:scale-105"
-                    onError={(e) => {
-                      const t = e.currentTarget
-                      if (!t.dataset.fallback) {
-                        t.dataset.fallback = '1'
-                        t.src = resolveAssetUrl('/p/i-standee.jpg')
-                      }
-                    }}
-                  />
-                </Link>
-              ))
-            )}
-          </div>
-        </Container>
-      </section>
-    ),
+      return (
+        <TedyScrollGallery
+          slides={gallerySlides}
+          isPreview={Boolean(previewProps)}
+          title={c?.gallery?.title || homeData?.gallery_title || 'Displays at work'}
+          eyebrow={c?.gallery?.subtitle || 'Commercial Installations'}
+          onOpenVideo={(url) => setActiveVideoModal(url)}
+          onOpenInstagram={(data) => setActiveInstagram(data)}
+        />
+      )
+    },
     tf: () => (
       <section className="border-t border-line bg-soft py-12 sm:py-20">
         <Container className="grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-12">
