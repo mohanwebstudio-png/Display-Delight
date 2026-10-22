@@ -57,12 +57,6 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
     }
   }, [])
 
-  // User requirement:
-  // "before the realtime data got loaded show the loading page dont show the defaut details on the website"
-  if (!previewProps && (loading || (!homeData && isLoadingCatalogue))) {
-    return <StoreLoader title="Loading DisplayDelight Displays" subtitle="Synchronizing real-time commercial catalogue & showroom..." />
-  }
-
   // Live or preview configuration values
   const c = previewProps?.c
   const activeHero = c?.hero || homeData?.hero
@@ -172,6 +166,12 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
     }
     return faqs.length > 0 ? faqs : (FALLBACK_FAQS as any)
   }, [c?.tf?.faqs, faqs])
+
+  // User requirement:
+  // "before the realtime data got loaded show the loading page dont show the defaut details on the website"
+  if (!previewProps && (loading || (!homeData && isLoadingCatalogue))) {
+    return <StoreLoader title="Loading DisplayDelight Displays" subtitle="Synchronizing real-time commercial catalogue & showroom..." />
+  }
 
   const defaultSecs: Array<{ id: string; label: string }> = [
     { id: 'announce', label: 'Announcement bar' },

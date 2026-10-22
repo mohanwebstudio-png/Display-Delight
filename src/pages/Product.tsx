@@ -269,9 +269,6 @@ export default function ProductPage({ id }: { id: string }) {
     }
   }, [id, p?.id, isUltraSlim, isCardStand, isLollipop, isRotatingLollipop, productSizes.length])
 
-  if (!p && !loading) return <Container className="py-16"><EmptyState title="Product not found" text="This product may have been unpublished or the link is incorrect." action={<Btn to="/shop">Browse products</Btn>} /></Container>
-  if (!p) return <Container className="py-16"><div className="animate-pulse space-y-4"><div className="h-8 w-1/3 bg-soft rounded" /><div className="h-64 bg-soft rounded" /></div></Container>
-
   const [dynVariants, setDynVariants] = useState<any[]>([])
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
 
@@ -293,6 +290,9 @@ export default function ProductPage({ id }: { id: string }) {
         .catch(() => {})
     }
   }, [p?.cat])
+
+  if (!p && !loading) return <Container className="py-16"><EmptyState title="Product not found" text="This product may have been unpublished or the link is incorrect." action={<Btn to="/shop">Browse products</Btn>} /></Container>
+  if (!p) return <Container className="py-16"><div className="animate-pulse space-y-4"><div className="h-8 w-1/3 bg-soft rounded" /><div className="h-64 bg-soft rounded" /></div></Container>
 
   const w = wishlist.includes(p.id), c = compare.includes(p.id)
   const allProds = products && products.length > 0 ? products : PRODUCTS
