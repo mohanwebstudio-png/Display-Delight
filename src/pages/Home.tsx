@@ -4,7 +4,7 @@ import {
   Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X,
   ShieldCheck, Box, SlidersHorizontal, Check, RefreshCw, ChevronLeft, ChevronRight,
   Volume2, VolumeX, ShoppingBag,
-  ShoppingCart, Pause
+  ShoppingCart, Pause, Copy, Tag, Percent, Clock, Flame, Gift
 } from 'lucide-react'
 import { INDUSTRIES, FAQS as FALLBACK_FAQS, CATS, byId, catName } from '../data'
 import { Link, useApp, resolveAssetUrl, go } from '../store'

@@ -132,8 +132,8 @@ const tones = {
   ok: 'bg-[#e8f5e9] text-ok', warn: 'bg-[#fff3e0] text-[#b45f00]', bad: 'bg-[#fdecea] text-bad',
   info: 'bg-[#e8eefc] text-[#2447a8]', brand: 'bg-brand-soft text-brand-hover', neutral: 'bg-soft text-ink-2 border border-line', navy: 'bg-navy text-white',
 }
-export const Badge = ({ tone = 'neutral', children, dot }: { tone?: keyof typeof tones; children: ReactNode; dot?: boolean }) => (
-  <span className={cx('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold', tones[tone])}>
+export const Badge = ({ tone = 'neutral', children, dot, className }: { tone?: keyof typeof tones; children: ReactNode; dot?: boolean; className?: string }) => (
+  <span className={cx('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold', tones[tone], className)}>
     {dot && <span className="size-1.5 rounded-full bg-current" />}{children}
   </span>
 )
@@ -310,43 +310,43 @@ export function ProductCard({ p, view = 'grid' }: { p: Product; view?: 'grid' | 
   const w = wishlist.includes(p.id), c = compare.includes(p.id)
   const list = view === 'list'
   const primary = p.stock === 0 ? (
-    <Btn size="sm" disabled variant="secondary" className="px-3 text-xs">Out of stock</Btn>
+    <Btn size="sm" disabled variant="secondary" className="w-full sm:w-auto px-2 sm:px-3 text-[11px] sm:text-xs">Out of stock</Btn>
   ) : p.kind === 'standard' && p.price != null ? (
-    <Btn size="sm" onClick={() => addToCart({ productId: p.id, qty: 1, options: { Size: p.sizes?.[0] || 'Standard' } })} icon={<ShoppingCart className="size-3.5" />} className="px-3 text-xs">Add to cart</Btn>
+    <Btn size="sm" onClick={() => addToCart({ productId: p.id, qty: 1, options: { Size: p.sizes?.[0] || 'Standard' } })} icon={<ShoppingCart className="size-3 sm:size-3.5" />} className="w-full sm:w-auto px-2 sm:px-3 text-[11px] sm:text-xs">Add to cart</Btn>
   ) : p.kind === 'standard' && p.price == null ? (
-    <Btn size="sm" to={`/quote?product=${p.slug || p.id}`} className="px-3 text-xs">Request quote</Btn>
+    <Btn size="sm" to={`/quote?product=${p.slug || p.id}`} className="w-full sm:w-auto px-2 sm:px-3 text-[11px] sm:text-xs">Request quote</Btn>
   ) : (
-    <Btn size="sm" to={`/product/${p.slug || p.id}`} iconRight icon={<ArrowRight className="size-3.5" />} className="px-3 text-xs font-semibold">Configure</Btn>
+    <Btn size="sm" to={`/product/${p.slug || p.id}`} iconRight icon={<ArrowRight className="size-3 sm:size-3.5" />} className="w-full sm:w-auto px-2 sm:px-3 text-[11px] sm:text-xs font-semibold">Configure</Btn>
   )
   return (
     <article className={cx('group relative flex flex-col overflow-hidden rounded-xl border border-line bg-white transition hover:border-[#c9c9d1] hover:shadow-card', list && 'sm:flex-row')}>
       <Link to={`/product/${p.slug || p.id}`} className={cx('relative block overflow-hidden bg-[#f3f1ee]', list ? 'w-full sm:w-52 md:w-60 shrink-0 aspect-[16/10] sm:aspect-auto' : 'aspect-[4/3.4]')} aria-label={p.name}>
         <img src={p.img} alt={p.name} loading="lazy" className="size-full object-cover mix-blend-multiply transition duration-500 group-hover:scale-[1.04]" />
         {p.stock === 0 ? (
-          <span className="absolute left-3 top-3"><Badge tone="bad">Out of stock</Badge></span>
+          <span className="absolute left-2 top-2 sm:left-3 sm:top-3"><Badge tone="bad" className="text-[10px] sm:text-xs px-1.5 py-0.5 sm:px-2.5 sm:py-0.5">Out of stock</Badge></span>
         ) : p.kind !== 'standard' ? (
-          <span className="absolute left-3 top-3"><Badge tone={p.kind === 'custom' ? 'brand' : 'navy'}>{p.kind === 'custom' ? 'Customizable' : 'Configurable'}</Badge></span>
+          <span className="absolute left-2 top-2 sm:left-3 sm:top-3"><Badge tone={p.kind === 'custom' ? 'brand' : 'navy'} className="text-[10px] sm:text-xs px-1.5 py-0.5 sm:px-2.5 sm:py-0.5">{p.kind === 'custom' ? 'Custom' : 'Configurable'}</Badge></span>
         ) : null}
       </Link>
-      <div className="absolute right-3 top-3 flex flex-col gap-2 z-10">
-        <button aria-label="Save to wishlist" aria-pressed={w} onClick={() => toggleWish(p.id)} className={cx('grid size-9 place-items-center rounded-full bg-white shadow transition hover:scale-105 active:scale-95 touch-manipulation', w ? 'text-brand' : 'text-ink-2')}><Heart className="size-4" fill={w ? 'currentColor' : 'none'} /></button>
-        <button aria-label="Add to compare" aria-pressed={c} onClick={() => toggleCompare(p.id)} className={cx('grid size-9 place-items-center rounded-full bg-white shadow transition hover:scale-105 active:scale-95 touch-manipulation', c ? 'text-brand' : 'text-ink-2')}><Scale className="size-4" /></button>
+      <div className="absolute right-2 top-2 sm:right-3 sm:top-3 flex flex-col gap-1 sm:gap-2 z-10">
+        <button aria-label="Save to wishlist" aria-pressed={w} onClick={() => toggleWish(p.id)} className={cx('grid size-7 sm:size-9 place-items-center rounded-full bg-white shadow transition hover:scale-105 active:scale-95 touch-manipulation', w ? 'text-brand' : 'text-ink-2')}><Heart className="size-3.5 sm:size-4" fill={w ? 'currentColor' : 'none'} /></button>
+        <button aria-label="Add to compare" aria-pressed={c} onClick={() => toggleCompare(p.id)} className={cx('grid size-7 sm:size-9 place-items-center rounded-full bg-white shadow transition hover:scale-105 active:scale-95 touch-manipulation', c ? 'text-brand' : 'text-ink-2')}><Scale className="size-3.5 sm:size-4" /></button>
       </div>
-      <div className="flex flex-1 flex-col p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-2 truncate">{catName(p.cat)}</p>
-        <Link to={`/product/${p.slug || p.id}`} className="mt-1 line-clamp-2 min-h-[44px] text-[15px] sm:text-[16px] font-semibold leading-snug hover:text-brand transition-colors" title={p.name}>{p.name}</Link>
-        <p className="mt-0.5 text-xs text-ink-2 font-mono">{p.sku}</p>
-        <p className="mt-2 line-clamp-2 min-h-[38px] text-[13px] text-ink-2 leading-relaxed">{p.blurb || 'Commercial-grade display engineered for showrooms and retail.'}</p>
-        <p className="mt-2 text-xs font-medium text-ink min-h-[18px] line-clamp-1">
+      <div className="flex flex-1 flex-col p-2.5 sm:p-4">
+        <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-2 truncate">{catName(p.cat)}</p>
+        <Link to={`/product/${p.slug || p.id}`} className="mt-1 line-clamp-2 min-h-[32px] sm:min-h-[44px] text-xs sm:text-[15px] font-semibold leading-snug hover:text-brand transition-colors" title={p.name}>{p.name}</Link>
+        <p className="mt-0.5 text-[10px] sm:text-xs text-ink-2 font-mono truncate">{p.sku}</p>
+        <p className="mt-2 hidden sm:line-clamp-2 min-h-[38px] text-[13px] text-ink-2 leading-relaxed">{p.blurb || 'Commercial-grade display engineered for showrooms and retail.'}</p>
+        <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs font-medium text-ink min-h-[14px] sm:min-h-[18px] line-clamp-1">
           {p.sizes && p.sizes.length > 1
             ? `${p.sizes.length} sizes: ${p.sizes.slice(0, 3).join(', ')}${p.sizes.length > 3 ? '…' : ''}`
             : (p.sizes && p.sizes.length === 1 && p.sizes[0])
             ? p.sizes[0]
             : ''}
         </p>
-        <div className="mt-auto flex items-center justify-between gap-2.5 pt-3 border-t border-line/60">
+        <div className="mt-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 sm:pt-3 border-t border-line/60">
           <div className="min-w-0 shrink-0"><Price p={p} layout="stacked" /></div>
-          <div className="shrink-0">{primary}</div>
+          <div className="w-full sm:w-auto shrink-0">{primary}</div>
         </div>
       </div>
     </article>

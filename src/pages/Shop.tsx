@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, LayoutGrid, List, PackageSearch, SlidersHorizontal, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, LayoutGrid, List, PackageSearch, SlidersHorizontal, X, CheckCircle2, Circle } from 'lucide-react'
 import { CATS, FILTERS_BY_CAT, PRODUCTS, catName, inr, optionsFor, toArr, byId, type FilterDef, type Product } from '../data'
 import { Link, go, useApp, resolveAssetUrl } from '../store'
 import { catalogueApi } from '../api'
@@ -23,6 +23,59 @@ function FilterGroup({ def, products, sel, onToggle }: { def: FilterDef; product
         <ChevronDown className={cx('size-4 text-ink-2 transition-transform duration-200', open && 'rotate-180')} />
       </button>
       {open && <div className="mt-2.5 max-h-56 space-y-1 overflow-y-auto pr-1">{opts.map((o) => <Check_ key={o.value} radio={def.type === 'radio'} checked={sel.includes(o.value)} onChange={() => onToggle(o.value)} label={o.value} count={o.count} />)}</div>}
+    </div>
+  )
+}
+
+/* Category filter shown only on "All Products" view */
+function CategoryFilter({ categoryList, currentCat }: { categoryList: Array<{ id: string; name: string; slug?: string }>; currentCat?: string }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className="border-b border-line py-3.5">
+      <button onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center justify-between text-left group">
+        <span className="flex items-center gap-2 text-sm font-bold text-ink group-hover:text-brand transition">
+          Category
+        </span>
+        <ChevronDown className={cx('size-4 text-ink-2 transition-transform duration-200', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="mt-2.5 space-y-0.5">
+          <Link
+            to="/shop"
+            className={cx(
+              'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition',
+              !currentCat
+                ? 'bg-brand/10 font-semibold text-brand'
+                : 'text-ink hover:bg-soft hover:text-brand'
+            )}
+          >
+            {!currentCat
+              ? <CheckCircle2 className="size-4 shrink-0 text-brand" />
+              : <Circle className="size-4 shrink-0 text-ink-3" />}
+            <span>All Displays</span>
+          </Link>
+          {categoryList.map((c) => {
+            const isActive = currentCat === c.id || currentCat === c.slug
+            return (
+              <Link
+                key={c.id}
+                to={`/category/${c.id}`}
+                className={cx(
+                  'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition',
+                  isActive
+                    ? 'bg-brand/10 font-semibold text-brand'
+                    : 'text-ink hover:bg-soft hover:text-brand'
+                )}
+              >
+                {isActive
+                  ? <CheckCircle2 className="size-4 shrink-0 text-brand" />
+                  : <Circle className="size-4 shrink-0 text-ink-3" />}
+                <span>{c.name}</span>
+              </Link>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -119,11 +172,18 @@ function PriceGroup({ price, setPrice, max }: { price: [number, number]; setPric
   )
 }
 
-function FilterPanel({ defs, products, sel, setSel, price, setPrice, maxPrice }: { defs: FilterDef[]; products: Product[]; sel: Sel; setSel: (s: Sel) => void; price: [number, number]; setPrice: (p: [number, number]) => void; maxPrice: number }) {
+function FilterPanel({ defs, products, sel, setSel, price, setPrice, maxPrice, isAllProducts, categoryList, currentCat }: { defs: FilterDef[]; products: Product[]; sel: Sel; setSel: (s: Sel) => void; price: [number, number]; setPrice: (p: [number, number]) => void; maxPrice: number; isAllProducts: boolean; categoryList: Array<{ id: string; name: string; slug?: string }>; currentCat?: string }) {
   const toggle = (def: FilterDef, v: string) => {
     const cur = sel[def.key] ?? []
     const next = def.type === 'radio' ? (cur.includes(v) ? [] : [v]) : cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]
     setSel({ ...sel, [def.key]: next })
+  }
+  if (isAllProducts) {
+    return (
+      <div>
+        <CategoryFilter categoryList={categoryList} currentCat={currentCat} />
+      </div>
+    )
   }
   return (
     <div>
@@ -319,12 +379,12 @@ export default function Shop({ cat, q = '' }: { cat?: string; q?: string }) {
             <div className="flex items-center justify-between pb-3.5 border-b border-line">
               <h2 className="text-base font-bold flex items-center gap-2 text-ink">
                 <SlidersHorizontal className="size-4 text-brand" />
-                Filters
+                {(!cat || cat === 'all') ? 'Browse by Category' : 'Filters'}
                 {chips.length > 0 && <span className="grid size-5 place-items-center rounded-full bg-brand text-[10px] font-bold text-white">{chips.length}</span>}
               </h2>
               {chips.length > 0 && <button onClick={clearAll} className="text-xs font-semibold text-brand hover:underline">Clear all</button>}
             </div>
-            <FilterPanel defs={defs} products={base} sel={sel} setSel={setSel} price={price} setPrice={setPrice} maxPrice={PMAX} />
+            <FilterPanel defs={defs} products={base} sel={sel} setSel={setSel} price={price} setPrice={setPrice} maxPrice={PMAX} isAllProducts={!cat || cat === 'all'} categoryList={categoryList} currentCat={cat} />
           </div>
         </aside>
 
@@ -358,7 +418,7 @@ export default function Shop({ cat, q = '' }: { cat?: string; q?: string }) {
               action={<><Btn onClick={clearAll}>Clear all filters</Btn><Btn variant="secondary" to="/shop">Browse all</Btn></>} />
           ) : (
             <>
-              <div className={cx('grid gap-4', view === 'grid' ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1')}>{shown.map((p) => <ProductCard key={p.id} p={p} view={view === 'list' ? 'list' : 'grid'} />)}</div>
+              <div className={cx('grid gap-4', view === 'grid' ? 'grid-cols-2 xl:grid-cols-3' : 'grid-cols-1')}>{shown.map((p) => <ProductCard key={p.id} p={p} view={view === 'list' ? 'list' : 'grid'} />)}</div>
               {pages > 1 && (
                 <nav className="mt-10 flex items-center justify-center gap-1.5" aria-label="Pagination">
                   <button disabled={page === 1} onClick={() => setPage(page - 1)} aria-label="Previous page" className="grid size-10 place-items-center rounded-dd border border-line hover:bg-soft disabled:opacity-40"><ChevronLeft className="size-4" /></button>
@@ -379,9 +439,9 @@ export default function Shop({ cat, q = '' }: { cat?: string; q?: string }) {
       </Container>
 
       {/* mobile drawer */}
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title="Filters" side="bottom"
-        footer={<div className="flex gap-3"><Btn variant="secondary" className="flex-1" onClick={() => { setDSel(Object.fromEntries(defs.map((d) => [d.key, []]))); setDPrice([0, PMAX]) }}>Clear all</Btn><Btn className="flex-[2]" onClick={() => { setSel(dSel); setPrice(dPrice); setDrawer(false) }}>Apply filters{draftCount > 0 && ` (${draftCount})`}</Btn></div>}>
-        <div className="px-5"><FilterPanel defs={defs} products={base} sel={dSel} setSel={setDSel} price={dPrice} setPrice={setDPrice} maxPrice={PMAX} /></div>
+      <Drawer open={drawer} onClose={() => setDrawer(false)} title={(!cat || cat === 'all') ? 'Browse by Category' : 'Filters'} side="bottom"
+        footer={(!cat || cat === 'all') ? undefined : <div className="flex gap-3"><Btn variant="secondary" className="flex-1" onClick={() => { setDSel(Object.fromEntries(defs.map((d) => [d.key, []]))); setDPrice([0, PMAX]) }}>Clear all</Btn><Btn className="flex-[2]" onClick={() => { setSel(dSel); setPrice(dPrice); setDrawer(false) }}>Apply filters{draftCount > 0 && ` (${draftCount})`}</Btn></div>}>
+        <div className="px-5"><FilterPanel defs={defs} products={base} sel={dSel} setSel={setDSel} price={dPrice} setPrice={setDPrice} maxPrice={PMAX} isAllProducts={!cat || cat === 'all'} categoryList={categoryList} currentCat={cat} /></div>
       </Drawer>
     </div>
   )
