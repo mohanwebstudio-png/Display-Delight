@@ -821,20 +821,6 @@ function FeyStackedGallery({
                       </p>
                     </div>
 
-                    {/* Minimal Specs Pills */}
-                    {item.specs && item.specs.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {item.specs.map((spec, sIdx) => (
-                          <span
-                            key={sIdx}
-                            className="text-[11px] font-medium text-white/80 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10"
-                          >
-                            {spec}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
                     {/* Minimal Action Row */}
                     <div className="pt-2 flex items-center gap-3">
                       <Link
@@ -1081,19 +1067,11 @@ function FramerTickerRow({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
 
-              {/* Tag Badge */}
-              <div className="absolute top-3 left-3 z-10">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white/95 border border-white/15 shadow-sm">
-                  <span className="size-1.5 rounded-full bg-brand animate-pulse" />
-                  {card.tag}
-                </span>
-              </div>
-
-              {/* City Location */}
-              {card.city && (
-                <div className="absolute top-3 right-3 z-10">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[10px] font-mono text-white/80 border border-white/10">
-                    📍 {card.city}
+              {/* Minimal Tag Pill */}
+              {card.tag && (
+                <div className="absolute top-2.5 left-2.5 z-10">
+                  <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 text-[10px] font-medium text-white/80 border border-white/10">
+                    {card.tag}
                   </span>
                 </div>
               )}
@@ -1109,8 +1087,8 @@ function FramerTickerRow({
                   className="absolute inset-0 grid place-items-center group/play z-20 cursor-pointer"
                   aria-label="Play video demo"
                 >
-                  <span className="grid size-12 place-items-center rounded-full bg-white/90 text-brand shadow-2xl transition-all duration-300 group-hover/play:scale-115 group-hover/play:bg-white">
-                    <Play className="ml-0.5 size-5" fill="currentColor" />
+                  <span className="grid size-11 place-items-center rounded-full bg-white/90 text-brand shadow-xl transition-all duration-300 group-hover/play:scale-110 group-hover/play:bg-white">
+                    <Play className="ml-0.5 size-4" fill="currentColor" />
                   </span>
                 </button>
               )}
@@ -1129,38 +1107,22 @@ function FramerTickerRow({
                       title: card.title,
                     })
                   }}
-                  className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 px-3 py-1 text-[10px] font-bold text-white shadow-lg hover:scale-105 transition cursor-pointer"
+                  className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-md hover:scale-105 transition cursor-pointer"
                 >
                   <InstagramIcon className="size-3" />
-                  <span>Watch Reel</span>
+                  <span>Reel</span>
                 </button>
               )}
             </div>
 
-            {/* Content Details */}
-            <div className="p-4 sm:p-5 flex flex-col justify-between space-y-3">
-              <div>
-                <h4 className="text-sm sm:text-base font-bold text-white tracking-tight line-clamp-1 group-hover:text-brand transition">
-                  {card.title}
-                </h4>
-                <p className="mt-1 text-xs text-white/65 line-clamp-1">
-                  {card.venue}
-                </p>
-              </div>
-
-              {/* Hardware Specs Chips */}
-              {card.specs && card.specs.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {card.specs.slice(0, 2).map((sp, sIdx) => (
-                    <span
-                      key={sIdx}
-                      className="text-[10px] font-medium text-white/70 bg-white/[0.06] px-2 py-0.5 rounded border border-white/5"
-                    >
-                      {sp}
-                    </span>
-                  ))}
-                </div>
-              )}
+            {/* Minimal Content Details */}
+            <div className="p-3.5 sm:p-4">
+              <h4 className="text-sm font-semibold text-white tracking-tight line-clamp-1 group-hover:text-brand transition">
+                {card.title}
+              </h4>
+              <p className="mt-1 text-xs text-white/50 truncate">
+                {card.city ? `${card.city} · ${card.venue}` : card.venue}
+              </p>
             </div>
           </div>
         ))}
@@ -1294,49 +1256,37 @@ function FramerTickerGallery({
   }, [items])
 
   return (
-    <section className="relative py-16 sm:py-24 bg-[#060913] text-white overflow-hidden">
+    <section className="relative py-10 sm:py-14 bg-[#060913] text-white overflow-hidden">
       {/* Ambient Radial Lighting */}
-      <div className="pointer-events-none absolute -left-40 top-1/4 size-[600px] rounded-full bg-brand/10 blur-[160px]" />
-      <div className="pointer-events-none absolute -right-40 bottom-1/4 size-[600px] rounded-full bg-blue-600/10 blur-[160px]" />
-      <div className="pointer-events-none absolute left-1/2 -top-40 -translate-x-1/2 size-[700px] rounded-full bg-indigo-500/5 blur-[180px]" />
+      <div className="pointer-events-none absolute -left-40 top-1/4 size-[500px] rounded-full bg-brand/10 blur-[150px]" />
+      <div className="pointer-events-none absolute -right-40 bottom-1/4 size-[500px] rounded-full bg-blue-600/10 blur-[150px]" />
 
-      <Container className="relative max-w-7xl mx-auto px-4 sm:px-6 mb-8 sm:mb-12">
-        {/* Header HUD */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-white/10">
+      <Container className="relative max-w-7xl mx-auto px-4 sm:px-6 mb-6 sm:mb-8">
+        {/* Minimal Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-white/10">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-brand/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#ff9b73] border border-brand/30 mb-2.5">
-              <span className="size-1.5 rounded-full bg-brand animate-pulse" />
-              {eyebrow}
-            </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-white font-display">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#ff9b73]">{eyebrow}</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-display mt-1">
               {title}
             </h2>
-            <p className="mt-1.5 text-xs sm:text-sm text-white/60 max-w-xl">
-              Scroll up or down to accelerate the ticker across commercial retail, airport terminals, and corporate lobbies.
-            </p>
           </div>
 
           {/* Interactive Controls & Link */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="hidden sm:inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3.5 py-1.5 border border-white/10 text-[11px] font-mono text-white/70">
-              <span className="size-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>⚡ Scroll-Reactive Physics</span>
-            </div>
-
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setIsPaused(!isPaused)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full bg-white/10 px-3 py-1.5 border border-white/15 hover:bg-white/15 text-white/90 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full bg-white/10 px-3 py-1.5 border border-white/15 hover:bg-white/15 text-white/80 transition cursor-pointer"
             >
               {isPaused ? <Play className="size-3 text-emerald-400" /> : <Pause className="size-3 text-amber-400" />}
-              <span>{isPaused ? 'Resume Motion' : 'Pause Drift'}</span>
+              <span>{isPaused ? 'Resume' : 'Pause'}</span>
             </button>
 
             <Link
               to="/gallery"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand hover:bg-brand-dark transition rounded-full px-4 py-2 shadow-lg hover:shadow-brand/25"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:text-white transition"
             >
-              <span>Explore full gallery</span>
+              <span>View full gallery</span>
               <ArrowRight className="size-3.5" />
             </Link>
           </div>
@@ -1345,7 +1295,7 @@ function FramerTickerGallery({
 
       {/* Panoramic Framer Ticker Streams with Edge Fade Masks */}
       <div
-        className="relative w-full space-y-5 sm:space-y-6"
+        className="relative w-full space-y-4 sm:space-y-5"
         style={{
           WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
           maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
@@ -1375,47 +1325,6 @@ function FramerTickerGallery({
           onOpenInstagram={onOpenInstagram}
         />
       </div>
-
-      {/* Commercial Trust Footer Ribbon */}
-      <Container className="relative max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-16">
-        <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-md p-5 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto text-center sm:text-left">
-            <div>
-              <div className="text-base sm:text-lg font-extrabold text-white">500+</div>
-              <div className="text-[11px] text-white/50">Turnkey Deployments</div>
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-extrabold text-white">28 States</div>
-              <div className="text-[11px] text-white/50">Pan-India Freight</div>
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-extrabold text-white">1 Year</div>
-              <div className="text-[11px] text-white/50">Warranty Support</div>
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-extrabold text-white">100% GST</div>
-              <div className="text-[11px] text-white/50">Tax Invoice Direct</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-            <Link
-              to="/customizer"
-              className="w-full sm:w-auto text-center inline-flex items-center justify-center gap-2 rounded-full bg-white/10 hover:bg-white/15 px-5 py-2.5 text-xs font-bold text-white border border-white/15 transition shadow-sm"
-            >
-              <Wand2 className="size-3.5 text-brand" />
-              <span>Customise display specs</span>
-            </Link>
-            <Link
-              to="/quote"
-              className="w-full sm:w-auto text-center inline-flex items-center justify-center gap-2 rounded-full bg-brand hover:bg-brand-dark px-5 py-2.5 text-xs font-bold text-white transition shadow-lg hover:shadow-brand/25"
-            >
-              <span>Get instant quote</span>
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-        </div>
-      </Container>
     </section>
   )
 }
