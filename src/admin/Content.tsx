@@ -76,7 +76,7 @@ const INIT = {
   industries: INDUSTRIES.slice(0, 4).map((_, i) => i),
   video: { title: 'See it in action', url: '', poster: '/p/i-standee.jpg' },
   benefits: [{ t: 'Custom artwork', d: 'Upload your design and preview it before you order.' }, { t: 'Made to order', d: 'Sizes and finishes configured to your space.' }, { t: 'Quotes on request', d: 'Ask our team for a quotation on any product.' }],
-  gallery: { title: 'From our gallery', subtitle: 'Live Installations', count: '4', style: 'fey' },
+  gallery: { title: 'From our gallery', subtitle: 'Live Installations', count: '6', style: 'ticker' },
   tf: { faqs: [0, 1, 2] as number[] },
   contact: { title: 'Ready to light up your brand?', text: 'Tell us what you need and we will get back to you.', cta: 'Contact us', to: '/contact' },
 }
@@ -555,7 +555,8 @@ export function HomepageEditor(_: any) {
       case 'gallery': return <>
         <Field label="Section heading"><Input value={c.gallery.title} onChange={(e) => set('gallery', { title: e.target.value })} /></Field>
         <Field label="Animation style">
-          <Select value={c.gallery.style || 'fey'} onChange={(e) => set('gallery', { style: e.target.value })}>
+          <Select value={c.gallery.style || 'ticker'} onChange={(e) => set('gallery', { style: e.target.value })}>
+            <option value="ticker">Ticker Scroll (Framer University Reactive)</option>
             <option value="fey">Stacked Cards (Fey / Apple Deck)</option>
             <option value="tedy">3D In-Place Scroll (Tedy)</option>
           </Select>

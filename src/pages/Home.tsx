@@ -4,7 +4,7 @@ import {
   Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X,
   ShieldCheck, Box, SlidersHorizontal, Check, RefreshCw, ChevronLeft, ChevronRight,
   Volume2, VolumeX, Copy, Tag, ShoppingBag, Percent, Clock, Flame, Gift, CheckCheck,
-  ShoppingCart
+  ShoppingCart, Pause
 } from 'lucide-react'
 import { INDUSTRIES, FAQS as FALLBACK_FAQS, CATS, byId, catName } from '../data'
 import { Link, useApp, resolveAssetUrl, go } from '../store'
@@ -908,6 +908,512 @@ function FeyStackedGallery({
               </div>
             )
           })}
+        </div>
+      </Container>
+    </section>
+  )
+}
+
+interface TickerCardData {
+  id: string | number
+  title: string
+  venue: string
+  city?: string
+  tag: string
+  specs?: string[]
+  img: string
+  media_type?: string
+  media_url?: string
+  embed_url?: string
+}
+
+function FramerTickerRow({
+  items,
+  direction = 'left',
+  speedMultiplier = 1,
+  isPaused = false,
+  onOpenVideo,
+  onOpenInstagram,
+}: {
+  items: TickerCardData[]
+  direction?: 'left' | 'right'
+  speedMultiplier?: number
+  isPaused?: boolean
+  onOpenVideo?: (url: string) => void
+  onOpenInstagram?: (data: { embedUrl: string; cleanUrl: string; title: string }) => void
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [isHovered, setIsHovered] = useState(false)
+  const offsetRef = useRef(0)
+  const targetOffsetRef = useRef(0)
+  const lastScrollYRef = useRef(typeof window !== 'undefined' ? window.scrollY : 0)
+  const setWidthRef = useRef(0)
+  const isDraggingRef = useRef(false)
+  const dragStartXRef = useRef(0)
+  const dragStartOffsetRef = useRef(0)
+
+  // Quadruple items to guarantee seamless infinite wrapping across 4K displays
+  const quadItems = useMemo(() => [...items, ...items, ...items, ...items], [items])
+
+  useEffect(() => {
+    const measure = () => {
+      if (!trackRef.current) return
+      const totalWidth = trackRef.current.scrollWidth
+      if (totalWidth > 0) {
+        setWidthRef.current = totalWidth / 4
+      }
+    }
+    measure()
+    const timer = setTimeout(measure, 300)
+    window.addEventListener('resize', measure)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', measure)
+    }
+  }, [quadItems])
+
+  useEffect(() => {
+    let animId: number
+    const baseAmbient = direction === 'left' ? 0.65 : -0.65
+
+    const onScroll = () => {
+      const currentScrollY = window.scrollY
+      const deltaY = currentScrollY - lastScrollYRef.current
+      lastScrollYRef.current = currentScrollY
+
+      // Framer Ticker scroll physics:
+      // Scrolling down drives leftward motion for 'left' row, rightward for 'right' row
+      const scrollFactor = direction === 'left' ? 0.95 : -0.95
+      targetOffsetRef.current += deltaY * scrollFactor * speedMultiplier
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+
+    const tick = () => {
+      // Ambient drift when not dragging and not paused
+      if (!isDraggingRef.current && !isPaused) {
+        if (!isHovered) {
+          targetOffsetRef.current += baseAmbient * speedMultiplier
+        } else {
+          // Slow silky crawl on card hover so user can read details
+          targetOffsetRef.current += (baseAmbient * 0.15) * speedMultiplier
+        }
+      }
+
+      // Spring-damped lerp interpolation (Framer smooth physics)
+      offsetRef.current += (targetOffsetRef.current - offsetRef.current) * 0.1
+
+      const setWidth = setWidthRef.current
+      if (setWidth > 0) {
+        let wrapped = offsetRef.current % setWidth
+        if (wrapped < 0) wrapped += setWidth
+        if (trackRef.current) {
+          trackRef.current.style.transform = `translate3d(-${wrapped}px, 0, 0)`
+        }
+      }
+
+      animId = requestAnimationFrame(tick)
+    }
+
+    animId = requestAnimationFrame(tick)
+
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(animId)
+    }
+  }, [direction, speedMultiplier, isHovered, isPaused])
+
+  const handleWheel = (e: React.WheelEvent) => {
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+    targetOffsetRef.current += delta * 0.8
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    isDraggingRef.current = true
+    dragStartXRef.current = e.touches[0].clientX
+    dragStartOffsetRef.current = targetOffsetRef.current
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingRef.current) return
+    const deltaX = dragStartXRef.current - e.touches[0].clientX
+    targetOffsetRef.current = dragStartOffsetRef.current + deltaX * 1.2
+  }
+
+  const handleTouchEnd = () => {
+    isDraggingRef.current = false
+  }
+
+  return (
+    <div
+      className="relative w-full overflow-hidden select-none py-2 cursor-grab active:cursor-grabbing"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div
+        ref={trackRef}
+        className="flex items-center gap-5 sm:gap-6 will-change-transform"
+        style={{ width: 'max-content' }}
+      >
+        {quadItems.map((card, idx) => (
+          <div
+            key={`${card.id}-${idx}`}
+            className="group relative w-[310px] sm:w-[370px] md:w-[420px] shrink-0 rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-b from-[#131c2e]/90 via-[#0d1424]/90 to-[#070b14]/90 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 hover:border-brand/60 hover:-translate-y-1.5 hover:shadow-[0_16px_40px_rgba(255,107,38,0.18)]"
+          >
+            {/* Visual Media with 16:10 ratio */}
+            <div className="relative aspect-[16/10] overflow-hidden bg-black/50">
+              <img
+                src={resolveAssetUrl(card.img)}
+                alt={card.title}
+                loading="lazy"
+                className="size-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-108"
+                onError={(e) => {
+                  const t = e.currentTarget
+                  if (!t.dataset.fallback) {
+                    t.dataset.fallback = '1'
+                    t.src = resolveAssetUrl('/p/ultraslim.jpg')
+                  }
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+
+              {/* Tag Badge */}
+              <div className="absolute top-3 left-3 z-10">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white/95 border border-white/15 shadow-sm">
+                  <span className="size-1.5 rounded-full bg-brand animate-pulse" />
+                  {card.tag}
+                </span>
+              </div>
+
+              {/* City Location */}
+              {card.city && (
+                <div className="absolute top-3 right-3 z-10">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[10px] font-mono text-white/80 border border-white/10">
+                    📍 {card.city}
+                  </span>
+                </div>
+              )}
+
+              {/* Video Play Overlay */}
+              {card.media_type === 'video' && card.media_url && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOpenVideo?.(card.media_url!)
+                  }}
+                  className="absolute inset-0 grid place-items-center group/play z-20 cursor-pointer"
+                  aria-label="Play video demo"
+                >
+                  <span className="grid size-12 place-items-center rounded-full bg-white/90 text-brand shadow-2xl transition-all duration-300 group-hover/play:scale-115 group-hover/play:bg-white">
+                    <Play className="ml-0.5 size-5" fill="currentColor" />
+                  </span>
+                </button>
+              )}
+
+              {/* Instagram Reel Overlay */}
+              {card.media_type === 'instagram' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const scMatch = card.media_url?.match(/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)
+                    const shortcode = scMatch ? scMatch[1] : ''
+                    onOpenInstagram?.({
+                      embedUrl: card.embed_url || `https://www.instagram.com/p/${shortcode}/embed/`,
+                      cleanUrl: card.media_url?.startsWith('http') ? card.media_url : `https://www.instagram.com/p/${shortcode}/`,
+                      title: card.title,
+                    })
+                  }}
+                  className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 px-3 py-1 text-[10px] font-bold text-white shadow-lg hover:scale-105 transition cursor-pointer"
+                >
+                  <InstagramIcon className="size-3" />
+                  <span>Watch Reel</span>
+                </button>
+              )}
+            </div>
+
+            {/* Content Details */}
+            <div className="p-4 sm:p-5 flex flex-col justify-between space-y-3">
+              <div>
+                <h4 className="text-sm sm:text-base font-bold text-white tracking-tight line-clamp-1 group-hover:text-brand transition">
+                  {card.title}
+                </h4>
+                <p className="mt-1 text-xs text-white/65 line-clamp-1">
+                  {card.venue}
+                </p>
+              </div>
+
+              {/* Hardware Specs Chips */}
+              {card.specs && card.specs.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {card.specs.slice(0, 2).map((sp, sIdx) => (
+                    <span
+                      key={sIdx}
+                      className="text-[10px] font-medium text-white/70 bg-white/[0.06] px-2 py-0.5 rounded border border-white/5"
+                    >
+                      {sp}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FramerTickerGallery({
+  items,
+  title = 'Displays at work',
+  eyebrow = 'Live Installations Across India',
+  isPreview,
+  onOpenVideo,
+  onOpenInstagram,
+}: {
+  items: TickerCardData[]
+  title?: string
+  eyebrow?: string
+  isPreview?: boolean
+  onOpenVideo?: (url: string) => void
+  onOpenInstagram?: (data: { embedUrl: string; cleanUrl: string; title: string }) => void
+}) {
+  const [isPaused, setIsPaused] = useState(false)
+
+  // Split into two complementary rows
+  const { row1, row2 } = useMemo(() => {
+    if (items.length >= 8) {
+      return {
+        row1: items.filter((_, i) => i % 2 === 0),
+        row2: items.filter((_, i) => i % 2 === 1),
+      }
+    }
+    // Fallback curated split
+    return {
+      row1: [
+        {
+          id: 'ft1',
+          title: 'Ultra-Slim Backlit Commercial Light Box',
+          venue: 'Phoenix Marketcity Mall · Main Luxury Atrium',
+          city: 'Mumbai',
+          tag: '✦ Storefront Flagship',
+          specs: ['1200 Nits Edge-LED', '28mm Aircraft Frame'],
+          img: '/p/ultraslim.jpg',
+        },
+        {
+          id: 'ft2',
+          title: 'Magnetic Seamless LED Fabric Light Box',
+          venue: 'Mercedes-Benz Experience Center · Feature Wall',
+          city: 'Chennai',
+          tag: '✦ Automobile Showroom',
+          specs: ['Frameless Silicone Edge', '24/7 Continuous Rating'],
+          img: '/p/fabric.jpg',
+        },
+        {
+          id: 'ft3',
+          title: 'Heavy-Duty Commercial Outdoor Pavilion Display',
+          venue: 'DLF CyberHub Open Promenade & Boulevard',
+          city: 'Gurugram',
+          tag: '✦ Outdoor Signage',
+          specs: ['IP65 Weatherproof', 'Anti-Glare Glass'],
+          img: '/p/gazebo.jpg',
+        },
+        {
+          id: 'ft4',
+          title: 'Frameless Fabric Illuminated Column',
+          venue: 'Kempegowda Int\'l Airport T2 · Departure Terminal',
+          city: 'Bengaluru',
+          tag: '✦ Airport Terminal',
+          specs: ['High CRI 95+', '360° Uniform Illumination'],
+          img: '/p/banner.jpg',
+        },
+        {
+          id: 'ft5',
+          title: 'A-Frame Magnetic Sidewalk Display Board',
+          venue: 'Connaught Place Luxury Fashion Storefront',
+          city: 'New Delhi',
+          tag: '✦ Retail Pavement',
+          specs: ['Anodized Jet-Black', 'Instant Poster Swap'],
+          img: '/p/a-board.jpg',
+        },
+      ],
+      row2: [
+        {
+          id: 'ft6',
+          title: 'E-Series 55" 4K Commercial Wall Signage',
+          venue: 'Global Tech Park Headquarters · Reception Directory',
+          city: 'Bangalore',
+          tag: '✦ Corporate Lobby',
+          specs: ['4K Ultra HD IPS', 'Cloud CMS Broadcaster'],
+          img: '/p/frames.jpg',
+        },
+        {
+          id: 'ft7',
+          title: 'Freestanding Double-Sided Digital Standee',
+          venue: 'Pragati Maidan Convention Center · Hall 4 Exhibition',
+          city: 'New Delhi',
+          tag: '✦ Exhibition & Events',
+          specs: ['Dual 55" FHD Displays', 'Heavy-Duty Steel Base'],
+          img: '/p/i-standee.jpg',
+        },
+        {
+          id: 'ft8',
+          title: 'Rotating Cylindrical LED Light Pillar',
+          venue: 'Jio World Drive Luxury Mall · BKC Luxury Wing',
+          city: 'Mumbai',
+          tag: '✦ Luxury Retail',
+          specs: ['360° Uniform Light', 'Mirror Polished Base'],
+          img: '/p/standee.jpg',
+        },
+        {
+          id: 'ft9',
+          title: 'Interactive Commercial Wayfinding Kiosk',
+          venue: 'Apollo Medical Center Atrium · Patient Navigation',
+          city: 'Hyderabad',
+          tag: '✦ Healthcare Directory',
+          specs: ['Capacitive Multi-Touch', 'Antimicrobial Coating'],
+          img: '/p/counter.jpg',
+        },
+        {
+          id: 'ft10',
+          title: 'Architectural LED Backlit Reception Sign',
+          venue: 'WeWork Galaxy HQ · Residency Road Center',
+          city: 'Bangalore',
+          tag: '✦ Tech Co-Working',
+          specs: ['Laser-Cut Acrylic', 'Ambient Halo Glow'],
+          img: '/p/round.jpg',
+        },
+      ],
+    }
+  }, [items])
+
+  return (
+    <section className="relative py-16 sm:py-24 bg-[#060913] text-white overflow-hidden">
+      {/* Ambient Radial Lighting */}
+      <div className="pointer-events-none absolute -left-40 top-1/4 size-[600px] rounded-full bg-brand/10 blur-[160px]" />
+      <div className="pointer-events-none absolute -right-40 bottom-1/4 size-[600px] rounded-full bg-blue-600/10 blur-[160px]" />
+      <div className="pointer-events-none absolute left-1/2 -top-40 -translate-x-1/2 size-[700px] rounded-full bg-indigo-500/5 blur-[180px]" />
+
+      <Container className="relative max-w-7xl mx-auto px-4 sm:px-6 mb-8 sm:mb-12">
+        {/* Header HUD */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-white/10">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-brand/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#ff9b73] border border-brand/30 mb-2.5">
+              <span className="size-1.5 rounded-full bg-brand animate-pulse" />
+              {eyebrow}
+            </div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-white font-display">
+              {title}
+            </h2>
+            <p className="mt-1.5 text-xs sm:text-sm text-white/60 max-w-xl">
+              Scroll up or down to accelerate the ticker across commercial retail, airport terminals, and corporate lobbies.
+            </p>
+          </div>
+
+          {/* Interactive Controls & Link */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="hidden sm:inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3.5 py-1.5 border border-white/10 text-[11px] font-mono text-white/70">
+              <span className="size-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>⚡ Scroll-Reactive Physics</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsPaused(!isPaused)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full bg-white/10 px-3 py-1.5 border border-white/15 hover:bg-white/15 text-white/90 transition cursor-pointer"
+            >
+              {isPaused ? <Play className="size-3 text-emerald-400" /> : <Pause className="size-3 text-amber-400" />}
+              <span>{isPaused ? 'Resume Motion' : 'Pause Drift'}</span>
+            </button>
+
+            <Link
+              to="/gallery"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand hover:bg-brand-dark transition rounded-full px-4 py-2 shadow-lg hover:shadow-brand/25"
+            >
+              <span>Explore full gallery</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+        </div>
+      </Container>
+
+      {/* Panoramic Framer Ticker Streams with Edge Fade Masks */}
+      <div
+        className="relative w-full space-y-5 sm:space-y-6"
+        style={{
+          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
+          maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
+        }}
+      >
+        {/* Soft edge curtains for extra polish */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-28 bg-gradient-to-r from-[#060913] to-transparent z-20" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-28 bg-gradient-to-l from-[#060913] to-transparent z-20" />
+
+        {/* Row 1: Leftward drift / accelerated leftward on scroll-down */}
+        <FramerTickerRow
+          items={row1}
+          direction="left"
+          speedMultiplier={1}
+          isPaused={isPaused}
+          onOpenVideo={onOpenVideo}
+          onOpenInstagram={onOpenInstagram}
+        />
+
+        {/* Row 2: Rightward drift / accelerated rightward on scroll-down */}
+        <FramerTickerRow
+          items={row2}
+          direction="right"
+          speedMultiplier={0.95}
+          isPaused={isPaused}
+          onOpenVideo={onOpenVideo}
+          onOpenInstagram={onOpenInstagram}
+        />
+      </div>
+
+      {/* Commercial Trust Footer Ribbon */}
+      <Container className="relative max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-16">
+        <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-md p-5 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto text-center sm:text-left">
+            <div>
+              <div className="text-base sm:text-lg font-extrabold text-white">500+</div>
+              <div className="text-[11px] text-white/50">Turnkey Deployments</div>
+            </div>
+            <div>
+              <div className="text-base sm:text-lg font-extrabold text-white">28 States</div>
+              <div className="text-[11px] text-white/50">Pan-India Freight</div>
+            </div>
+            <div>
+              <div className="text-base sm:text-lg font-extrabold text-white">1 Year</div>
+              <div className="text-[11px] text-white/50">Warranty Support</div>
+            </div>
+            <div>
+              <div className="text-base sm:text-lg font-extrabold text-white">100% GST</div>
+              <div className="text-[11px] text-white/50">Tax Invoice Direct</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <Link
+              to="/customizer"
+              className="w-full sm:w-auto text-center inline-flex items-center justify-center gap-2 rounded-full bg-white/10 hover:bg-white/15 px-5 py-2.5 text-xs font-bold text-white border border-white/15 transition shadow-sm"
+            >
+              <Wand2 className="size-3.5 text-brand" />
+              <span>Customise display specs</span>
+            </Link>
+            <Link
+              to="/quote"
+              className="w-full sm:w-auto text-center inline-flex items-center justify-center gap-2 rounded-full bg-brand hover:bg-brand-dark px-5 py-2.5 text-xs font-bold text-white transition shadow-lg hover:shadow-brand/25"
+            >
+              <span>Get instant quote</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
         </div>
       </Container>
     </section>
@@ -1929,9 +2435,83 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
         )
       }
 
-      // Default & Recommended: Fey-style Stacked Cards (Apple / Linear sticky deck)
-      const feyItems: FeyGalleryItem[] = (galleryItems && galleryItems.length > 0)
-        ? galleryItems.slice(0, 5).map((item, idx) => ({
+      if (c?.gallery?.style === 'fey') {
+        const feyItems: FeyGalleryItem[] = (galleryItems && galleryItems.length > 0)
+          ? galleryItems.slice(0, 5).map((item, idx) => ({
+              id: item.id || idx,
+              title: item.title || 'Commercial Display Installation',
+              venue: item.description || 'Corporate & Retail Site Deployment',
+              city: (item as any).city || 'Pan-India',
+              tag: item.media_type === 'video' ? 'Video Demo' : item.media_type === 'instagram' ? 'Reel Showcase' : 'Live Installation',
+              specs: ['Commercial Grade', 'High Luminance', 'Custom Branded'],
+              img: item.thumbnail_url || item.media_url || '/p/ultraslim.jpg',
+              media_type: item.media_type,
+              media_url: item.media_url,
+              embed_url: item.embed_url,
+            }))
+          : [
+              {
+                id: 'f1',
+                title: 'Ultra-Slim Backlit Commercial Light Box',
+                venue: 'Phoenix Marketcity Mall · Main Luxury Atrium',
+                city: 'Mumbai',
+                tag: '✦ Storefront Flagship',
+                specs: ['1200 Nits Edge-LED', '28mm Aircraft Aluminum', 'Snap-Frame Poster Swap'],
+                img: '/p/ultraslim.jpg',
+              },
+              {
+                id: 'f2',
+                title: 'E-Series 55" 4K Commercial Wall Signage',
+                venue: 'Global Tech Park Headquarters · Reception & Directory',
+                city: 'Bangalore',
+                tag: '✦ Corporate Lobby',
+                specs: ['4K Ultra HD IPS', '24/7 Continuous Operation', 'Cloud CMS Broadcaster'],
+                img: '/p/frames.jpg',
+              },
+              {
+                id: 'f3',
+                title: 'Freestanding Double-Sided Digital Standee',
+                venue: 'Pragati Maidan Convention Center · Hall 4 Exhibition',
+                city: 'New Delhi',
+                tag: '✦ Exhibition & Events',
+                specs: ['Dual 55" FHD Displays', 'Heavy-Duty Steel Base', 'Built-in Stereo Audio'],
+                img: '/p/i-standee.jpg',
+              },
+              {
+                id: 'f4',
+                title: 'Magnetic Seamless LED Fabric Light Box',
+                venue: 'Mercedes-Benz Experience Center · Showroom Feature Wall',
+                city: 'Chennai',
+                tag: '✦ Automobile Showroom',
+                specs: ['Frameless Silicone Edge Graphic', 'Vibrant Color Accuracy', 'Modular Extrusion'],
+                img: '/p/fabric.jpg',
+              },
+              {
+                id: 'f5',
+                title: 'Heavy-Duty Commercial Outdoor Pavilion Display',
+                venue: 'DLF CyberHub Open Promenade & Boulevard',
+                city: 'Gurugram',
+                tag: '✦ Outdoor Signage',
+                specs: ['IP65 Weatherproof', 'Anti-Glare Tempered Glass', 'Wind-Resistant Base'],
+                img: '/p/gazebo.jpg',
+              },
+            ]
+
+        return (
+          <FeyStackedGallery
+            items={feyItems}
+            title={c?.gallery?.title || homeData?.gallery_title || 'Displays at work'}
+            eyebrow={c?.gallery?.subtitle || 'Live Installations'}
+            isPreview={Boolean(previewProps)}
+            onOpenVideo={(url) => setActiveVideoModal(url)}
+            onOpenInstagram={(data) => setActiveInstagram(data)}
+          />
+        )
+      }
+
+      // Default & Highly-Requested: Framer University Ticker Scroll (Dual-Row Reactive Physics)
+      const tickerItems: TickerCardData[] = (galleryItems && galleryItems.length > 0)
+        ? galleryItems.map((item, idx) => ({
             id: item.id || idx,
             title: item.title || 'Commercial Display Installation',
             venue: item.description || 'Corporate & Retail Site Deployment',
@@ -1943,59 +2523,13 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
             media_url: item.media_url,
             embed_url: item.embed_url,
           }))
-        : [
-            {
-              id: 'f1',
-              title: 'Ultra-Slim Backlit Commercial Light Box',
-              venue: 'Phoenix Marketcity Mall · Main Luxury Atrium',
-              city: 'Mumbai',
-              tag: '✦ Storefront Flagship',
-              specs: ['1200 Nits Edge-LED', '28mm Aircraft Aluminum', 'Snap-Frame Poster Swap'],
-              img: '/p/ultraslim.jpg',
-            },
-            {
-              id: 'f2',
-              title: 'E-Series 55" 4K Commercial Wall Signage',
-              venue: 'Global Tech Park Headquarters · Reception & Directory',
-              city: 'Bangalore',
-              tag: '✦ Corporate Lobby',
-              specs: ['4K Ultra HD IPS', '24/7 Continuous Operation', 'Cloud CMS Broadcaster'],
-              img: '/p/frames.jpg',
-            },
-            {
-              id: 'f3',
-              title: 'Freestanding Double-Sided Digital Standee',
-              venue: 'Pragati Maidan Convention Center · Hall 4 Exhibition',
-              city: 'New Delhi',
-              tag: '✦ Exhibition & Events',
-              specs: ['Dual 55" FHD Displays', 'Heavy-Duty Steel Base', 'Built-in Stereo Audio'],
-              img: '/p/i-standee.jpg',
-            },
-            {
-              id: 'f4',
-              title: 'Magnetic Seamless LED Fabric Light Box',
-              venue: 'Mercedes-Benz Experience Center · Showroom Feature Wall',
-              city: 'Chennai',
-              tag: '✦ Automobile Showroom',
-              specs: ['Frameless Silicone Edge Graphic', 'Vibrant Color Accuracy', 'Modular Extrusion'],
-              img: '/p/fabric.jpg',
-            },
-            {
-              id: 'f5',
-              title: 'Heavy-Duty Commercial Outdoor Pavilion Display',
-              venue: 'DLF CyberHub Open Promenade & Boulevard',
-              city: 'Gurugram',
-              tag: '✦ Outdoor Signage',
-              specs: ['IP65 Weatherproof', 'Anti-Glare Tempered Glass', 'Wind-Resistant Base'],
-              img: '/p/gazebo.jpg',
-            },
-          ]
+        : []
 
       return (
-        <FeyStackedGallery
-          items={feyItems}
+        <FramerTickerGallery
+          items={tickerItems}
           title={c?.gallery?.title || homeData?.gallery_title || 'Displays at work'}
-          eyebrow={c?.gallery?.subtitle || 'Live Installations'}
+          eyebrow={c?.gallery?.subtitle || 'Live Installations Across India'}
           isPreview={Boolean(previewProps)}
           onOpenVideo={(url) => setActiveVideoModal(url)}
           onOpenInstagram={(data) => setActiveInstagram(data)}

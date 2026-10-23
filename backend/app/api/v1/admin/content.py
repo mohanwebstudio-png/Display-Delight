@@ -174,7 +174,7 @@ def get_homepage_editor_data(
         except Exception:
             pass
 
-    gallery_config = {"title": "From our gallery", "count": "4"}
+    gallery_config = {"title": "From our gallery", "subtitle": "Live Installations", "count": "6", "style": "ticker"}
     if gallery_sec and gallery_sec.content:
         try:
             gallery_config = json.loads(gallery_sec.content) if isinstance(gallery_sec.content, str) else gallery_sec.content
