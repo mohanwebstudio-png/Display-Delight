@@ -3,7 +3,7 @@ import {
   ArrowRight, ArrowUp, ArrowDown, ArrowUpRight, Layers, Mail, MessageCircle, Play,
   Quote as QuoteIcon, Ruler, Sparkles, Star, Truck, Wand2, ExternalLink, X,
   ShieldCheck, Box, SlidersHorizontal, Check, RefreshCw, ChevronLeft, ChevronRight,
-  Volume2, VolumeX, Copy, Tag, ShoppingBag, Percent, Clock, Flame, Gift, CheckCheck,
+  Volume2, VolumeX, ShoppingBag,
   ShoppingCart, Pause
 } from 'lucide-react'
 import { INDUSTRIES, FAQS as FALLBACK_FAQS, CATS, byId, catName } from '../data'
@@ -1330,7 +1330,7 @@ function FramerTickerGallery({
 }
 
 export default function Home({ previewProps }: { previewProps?: HomePreviewProps } = {}) {
-  const { products, categories, isLoadingCatalogue, addToCart, setCoupon, toast } = useApp()
+  const { products, categories, isLoadingCatalogue, addToCart, toast } = useApp()
   const [homeData, setHomeData] = useState<ApiHomepageData | null>(null)
   const [faqs, setFaqs] = useState<[string, string][]>([])
   const [loading, setLoading] = useState(!previewProps)
@@ -1345,35 +1345,6 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
   const [activeReel, setActiveReel] = useState<any | null>(null)
   const [reelMuted, setReelMuted] = useState(true)
   const reelsScrollRef = useRef<HTMLDivElement>(null)
-
-  // Advertisement Offer Pop-up State & Urgency Timer
-  const [showOfferPopup, setShowOfferPopup] = useState(false)
-  const [copiedCode, setCopiedCode] = useState(false)
-  const [timeLeft, setTimeLeft] = useState({ minutes: 14, seconds: 59 })
-
-  // Auto-open Advertisement Offer Pop-up once per session after 1.6s
-  useEffect(() => {
-    if (previewProps) return
-    const hasSeen = sessionStorage.getItem('dd_offer_popup_seen_v1')
-    if (!hasSeen) {
-      const timer = setTimeout(() => {
-        setShowOfferPopup(true)
-      }, 1600)
-      return () => clearTimeout(timer)
-    }
-  }, [previewProps])
-
-  // Offer urgency countdown timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 }
-        if (prev.minutes > 0) return { minutes: prev.minutes - 1, seconds: 59 }
-        return { minutes: 14, seconds: 59 }
-      })
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   const scrollReels = (delta: number) => {
     if (reelsScrollRef.current) {
@@ -2710,149 +2681,6 @@ export default function Home({ previewProps }: { previewProps?: HomePreviewProps
         </div>
       )}
 
-      {/* Commercial Advertisement Offer Pop-up Modal */}
-      {showOfferPopup && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 sm:p-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Commercial Special Offer"
-          onClick={() => {
-            setShowOfferPopup(false)
-            sessionStorage.setItem('dd_offer_popup_seen_v1', '1')
-          }}
-        >
-          <div
-            className="anim-pop relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-amber-500/20"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header Banner */}
-            <div className="relative bg-gradient-to-br from-amber-600 via-orange-600 to-rose-600 px-6 py-6 text-white text-center">
-              {/* Background Glow */}
-              <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/20 blur-xl" />
-              
-              <button
-                type="button"
-                onClick={() => {
-                  setShowOfferPopup(false)
-                  sessionStorage.setItem('dd_offer_popup_seen_v1', '1')
-                }}
-                className="absolute top-4 right-4 grid size-8 place-items-center rounded-full bg-black/25 text-white hover:bg-black/40 transition cursor-pointer"
-                aria-label="Close offer pop-up"
-              >
-                <X className="size-4" />
-              </button>
-
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-xs backdrop-blur mb-2">
-                <Flame className="size-3.5 text-amber-300 animate-pulse" />
-                Special Advertisement Offer
-              </span>
-
-              <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight font-display">
-                FLAT 10% OFF
-              </h3>
-              <p className="text-sm font-semibold text-white/90 mt-0.5">
-                On Your Commercial Display Order
-              </p>
-
-              {/* Urgency Countdown Timer */}
-              <div className="mt-3 inline-flex items-center gap-2 rounded-xl bg-black/30 px-3 py-1 text-xs font-mono font-bold text-amber-200">
-                <Clock className="size-3.5 text-amber-300" />
-                <span>Expires in: {String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}</span>
-              </div>
-            </div>
-
-            {/* Offer Body */}
-            <div className="p-6 sm:p-7 space-y-5">
-              <p className="text-center text-xs sm:text-sm text-ink-2 leading-relaxed">
-                Upgrade your store, showroom or corporate space with premium digital standees, LED light boxes, and tabletop signage. Use this promo code at checkout:
-              </p>
-
-              {/* Coupon Box with Copy Button */}
-              <div className="flex items-center justify-between rounded-2xl border-2 border-dashed border-amber-500/50 bg-amber-50/70 p-3.5 sm:p-4">
-                <div className="flex items-center gap-3">
-                  <div className="grid size-10 place-items-center rounded-xl bg-amber-500 text-white shadow-sm">
-                    <Tag className="size-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Promo Code</span>
-                    <p className="font-mono text-xl sm:text-2xl font-black tracking-widest text-navy">WELCOME10</p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText('WELCOME10')
-                    setCopiedCode(true)
-                    toast('Coupon code WELCOME10 copied to clipboard!')
-                    setTimeout(() => setCopiedCode(false), 2500)
-                  }}
-                  className={cx(
-                    'flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition active:scale-95 shadow-xs cursor-pointer',
-                    copiedCode
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-white text-navy hover:bg-neutral-100 border border-line'
-                  )}
-                >
-                  {copiedCode ? <CheckCheck className="size-4" /> : <Copy className="size-4" />}
-                  <span>{copiedCode ? 'Copied!' : 'Copy Code'}</span>
-                </button>
-              </div>
-
-              {/* Direct Primary Action: Apply & Shop Now */}
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCoupon('WELCOME10')
-                    toast('🎉 Coupon WELCOME10 applied! 10% discount activated.', 'ok')
-                    setShowOfferPopup(false)
-                    sessionStorage.setItem('dd_offer_popup_seen_v1', '1')
-                    go('/shop')
-                  }}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-dark py-3.5 px-4 text-sm font-bold text-white transition active:scale-98 shadow-md cursor-pointer"
-                >
-                  <Percent className="size-4" />
-                  Apply 10% Discount & Shop Displays Now
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowOfferPopup(false)
-                    sessionStorage.setItem('dd_offer_popup_seen_v1', '1')
-                  }}
-                  className="w-full py-2 text-center text-xs font-semibold text-ink-2 hover:text-navy transition cursor-pointer"
-                >
-                  Continue browsing homepage
-                </button>
-              </div>
-
-              {/* Trust Badges */}
-              <div className="border-t border-line/70 pt-4 grid grid-cols-3 gap-2 text-center text-[11px] font-medium text-ink-2">
-                <div>✓ All Displays Eligible</div>
-                <div>✓ GST 18% Invoice</div>
-                <div>✓ Fast Pan-India Dispatch</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Re-Open Offer Trigger Pill */}
-      {!showOfferPopup && (
-        <button
-          type="button"
-          onClick={() => setShowOfferPopup(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-2xl ring-4 ring-amber-400/30 transition hover:scale-105 active:scale-95 cursor-pointer animate-pulse"
-          title="Open Special Commercial Offer"
-        >
-          <Gift className="size-4 text-amber-200" />
-          <span>Special Offer · 10% OFF</span>
-          <span className="rounded-md bg-black/30 px-1.5 py-0.5 font-mono text-[11px]">WELCOME10</span>
-        </button>
-      )}
     </>
   )
 }
